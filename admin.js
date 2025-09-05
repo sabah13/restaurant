@@ -714,12 +714,9 @@ const catForm = q('#catForm');
 if (catForm) {
   catForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (__addingCat) return;
-__addingCat = true;
-
     const name = e.target.name.value.trim();
     if (!name) return;
-const id = name.trim().replace(/\s+/g, '-').toLowerCase();
+    const id = name.replace(/\s+/g, '-').toLowerCase() + '-' + Math.floor(Math.random() * 9999);
     try {
       if (window.supabaseBridge?.createCategorySB) {
         await window.supabaseBridge.createCategorySB({ id, name, sort: 100 });
@@ -748,12 +745,8 @@ const id = name.trim().replace(/\s+/g, '-').toLowerCase();
       updateNotifCount();
       updateOrderCounters();
       updateReservationCounters();
-      __addingCat = false;
-
     } catch (err) {
       console.error(err);
-      __addingCat = false;
-
       setText('#catMsg', 'تعذّر إضافة القسم');
     }
   });
