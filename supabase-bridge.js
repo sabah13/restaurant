@@ -93,7 +93,7 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   const r = ins.data;
   const list = LS.get('reservations', []);
   list.unshift({
-    id: r.id, name: r.name, phone: r.phone, time: r.date,
+    id: r.id, name: r.name, phone: r.phone, date: r.date,
     people: r.people, kind: r.kind, table: r.table_no || '',
     duration: r.duration_minutes || 90, notes: r.notes || '',
     createdAt: new Date().toISOString()
@@ -124,6 +124,17 @@ export async function deleteReservationSB(id){
   const list = (LS.get('reservations', []) || []).filter(r => r.id !== id);
   LS.set('reservations', list);
   return true;
+}
+// ---------- Categories ----------
+export async function createCategorySB({ id, name, sort = 100 }){
+  const sb = window.supabase;
+  const ins = await sb.from('categories').insert([{ id, name, sort }]).select().single();
+  if (ins.error) throw ins.error;
+  // تحديث الكاش المحلي مباشرة لظهور القسم فورًا
+  const cats = LS.get('categories', []);
+  cats.push({ id: ins.data.id, name: ins.data.name, sort: ins.data.sort });
+  LS.set('categories', cats);
+  return ins.data;
 }
 
 // ---------- Ratings ----------
@@ -191,7 +202,7 @@ export async function syncAdminDataToLocal(){
   })));
 
   LS.set('reservations', (reservations.data||[]).map(r => ({
-    id: r.id, name: r.name, phone: r.phone, time: r.date,
+    id: r.id, name: r.name, phone: r.phone, date: r.date,
     people: r.people, kind: r.kind, table: r.table_no || '',
     duration: r.duration_minutes || 90, notes: r.notes || ''
   })));
@@ -227,6 +238,7 @@ export async function requireAdminOrRedirect(loginPath='login.html'){
 window.supabaseBridge = {
   syncPublicCatalogToLocal,
   createOrderSB,
+  createCategorySB,
   createReservationSB,
   updateReservationSB,
   deleteReservationSB,
