@@ -26,10 +26,18 @@
 <script type="module" src="supabase-bridge.js"></script>
 
 <!-- مزامنة الكتالوج للـlocalStorage قبل script.js -->
-<script type="module">
-  import { syncPublicCatalogToLocal } from './supabase-bridge.js';
-  await syncPublicCatalogToLocal();
+<script>
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      if (window.supabaseBridge?.syncPublicCatalogToLocal) {
+        await window.supabaseBridge.syncPublicCatalogToLocal();
+      }
+    } catch (e) {
+      console.error('syncPublicCatalogToLocal failed', e);
+    }
+  });
 </script>
+
 
 </head>
 <body class="has-front-sidebar">
