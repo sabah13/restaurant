@@ -486,11 +486,21 @@ async function deleteCat(id) {
   if (id === 'all') { window.Modal.info('لا يمكن حذف قسم "جميع الأطباق".','تنبيه'); return; }
   const okCat = await window.Modal.confirm('هل تريد حذف هذا القسم؟', 'تأكيد الحذف');
   if (!okCat) return;
-  let cats = LS.get('categories', []);
-  cats = cats.filter((c) => c.id !== id);
-  LS.set('categories', cats);
-  fillCatSelect();
-  renderCatsTable();
+  try{
+    if (window.supabaseBridge?.deleteCategorySB) {
+      await window.supabaseBridge.deleteCategorySB(id);
+      await window.supabaseBridge.syncAdminDataToLocal();
+    } else {
+      let cats = LS.get('categories', []);
+      cats = cats.filter((c) => c.id !== id);
+      LS.set('categories', cats);
+    }
+    fillCatSelect();
+    renderCatsTable();
+    renderItemsTable();
+  }catch(e){
+    window.Modal.info('تعذّر حذف القسم من قاعدة البيانات','خطأ');
+  }
 }
 
 /* ======= NEW: Edit Category via Modal (no snackbar) ======= */
@@ -506,35 +516,34 @@ function editCat(id){
         <label class="app-label">اسم القسم</label>
         <input class="app-input" id="ec_name" type="text" value="${c.name || ''}" />
       </div>
-      <div>
-        <label class="app-label">المعرّف (بدون مسافات)</label>
-        <input class="app-input" id="ec_id" type="text" value="${c.id || ''}" />
+      <div class="small" style="color:var(--muted);margin-top:8px">
+        المعرّف: <code>${c.id}</code> (لا يمكن تغييره من هنا)
       </div>
     </div>
   `;
-  function submit(){
+  async function submit(){
     const name = q('#ec_name').value.trim();
-    let newId = q('#ec_id').value.trim();
     if(!name){ window.Modal.info('الاسم مطلوب','تنبيه'); return; }
-    if(!newId) newId = c.id;
-
-    if(newId !== c.id){
-      const items = LS.get('menuItems', []);
-      items.forEach(it => { if(it.catId === c.id) it.catId = newId; });
-      LS.set('menuItems', items);
-      c.id = newId;
+    try{
+      if(window.supabaseBridge?.updateCategorySB){
+        await window.supabaseBridge.updateCategorySB(c.id, { name });
+        await window.supabaseBridge.syncAdminDataToLocal();
+      }else{
+        c.name = name;
+        LS.set('categories', cats);
+      }
+      hideModal();
+      fillCatSelect(); renderCatsTable(); renderItemsTable();
+      const notifs = LS.get('notifications', []);
+      notifs.unshift({
+        id: crypto.randomUUID(), type:'inventory',
+        title: 'تعديل قسم', message: name, time: nowISO(), read:false
+      });
+      LS.set('notifications', notifs);
+      updateNotifCount(); updateOrderCounters(); updateReservationCounters();
+    }catch(e){
+      window.Modal.info('تعذّر تحديث القسم في قاعدة البيانات','خطأ');
     }
-    c.name = name;
-    LS.set('categories', cats);
-    hideModal();
-    fillCatSelect(); renderCatsTable(); renderItemsTable();
-    const notifs = LS.get('notifications', []);
-    notifs.unshift({
-      id: crypto.randomUUID(), type:'inventory',
-      title: 'تعديل قسم', message: name, time: nowISO(), read:false
-    });
-    LS.set('notifications', notifs);
-    updateNotifCount(); updateOrderCounters(); updateReservationCounters();
   }
   showModal({
     title:'تعديل قسم',
@@ -545,6 +554,7 @@ function editCat(id){
     ],
   });
 }
+
 
 /* ======= Toggle & Delete Item (unchanged) ======= */
 function toggleItem(id) {
