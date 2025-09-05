@@ -712,33 +712,46 @@ function editItem(id){
 /* ======= Forms: Add Category & Item ======= */
 const catForm = q('#catForm');
 if (catForm) {
-  catForm.addEventListener('submit', (e) => {
+  catForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = e.target.name.value.trim();
     if (!name) return;
-    const cats = LS.get('categories', []);
     const id = name.replace(/\s+/g, '-').toLowerCase() + '-' + Math.floor(Math.random() * 9999);
-    cats.push({ id, name });
-    LS.set('categories', cats);
-    e.target.reset();
-    setText('#catMsg', 'تمت إضافة القسم');
-    fillCatSelect();
-    renderCatsTable();
-    const notifs = LS.get('notifications', []);
-    notifs.unshift({
-      id: crypto.randomUUID(),
-      type: 'inventory',
-      title: 'قسم جديد',
-      message: name,
-      time: nowISO(),
-      read: false,
-    });
-    LS.set('notifications', notifs);
-    updateNotifCount();
-    updateOrderCounters();
-    updateReservationCounters();
+    try {
+      if (window.supabaseBridge?.createCategorySB) {
+        await window.supabaseBridge.createCategorySB({ id, name, sort: 100 });
+        // توحيد المصدر بعد الإضافة
+        await window.supabaseBridge.syncAdminDataToLocal();
+      } else {
+        const cats = LS.get('categories', []);
+        cats.push({ id, name });
+        LS.set('categories', cats);
+      }
+      e.target.reset();
+      setText('#catMsg', 'تمت إضافة القسم');
+      fillCatSelect();
+      renderCatsTable();
+
+      const notifs = LS.get('notifications', []);
+      notifs.unshift({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: 'قسم جديد',
+        message: name,
+        time: nowISO(),
+        read: false,
+      });
+      LS.set('notifications', notifs);
+      updateNotifCount();
+      updateOrderCounters();
+      updateReservationCounters();
+    } catch (err) {
+      console.error(err);
+      setText('#catMsg', 'تعذّر إضافة القسم');
+    }
   });
 }
+
 
 const itemForm = q('#itemForm');
 if (itemForm) {
