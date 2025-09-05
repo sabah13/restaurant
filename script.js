@@ -296,7 +296,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const cancel = document.createElement('button'); cancel.className='btn btn-ghost';  cancel.textContent='إلغاء';
     cancel.onclick = ()=> Modal.hide();
 
-    ok.onclick = ()=>{
+    // [FIX] اجعل الحدث async
+    ok.onclick = async ()=>{
       const name  = document.getElementById('rName')?.value.trim()  || '';
       const phone = document.getElementById('rPhone')?.value.trim() || '';
       const date  = document.getElementById('rDate')?.value || '';
@@ -337,9 +338,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
         return;
       }
 
-    await window.supabaseBridge.createReservationSB({
-  name, phone, iso: `${date}T${time}`, people: ppl, kind: type, notes, duration_minutes: 90
-});
+      // [FIX] تحقّق من توفر الجسر
+      if(!window.supabaseBridge || !window.supabaseBridge.createReservationSB){
+        Modal.info('الخدمة غير متاحة الآن. تأكد من تحميل Supabase والجسر.','تعذّر الإرسال');
+        return;
+      }
+
+      // [FIX] لفّ النداء بـ try/catch
+      try{
+        await window.supabaseBridge.createReservationSB({
+          name, phone, iso: `${date}T${time}`, people: ppl, kind: type, notes, duration_minutes: 90
+        });
 
         // إشعار لصفحة لوحة التحكم
         const ns = LS.get('notifications', []);
@@ -352,7 +361,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
           read: false
         });
         LS.set('notifications', ns);
-      }catch(e){}
+      }catch(e){
+        console.error(e);
+        Modal.info('تعذّر إرسال الحجز، حاول لاحقًا.','خطأ');
+        return; // لا تُظهر نجاح عند الفشل
+      }
+      /* }catch(e){} */ // [FIX] تحييد الـ catch القديم
 
       Modal.hide();
       Modal.info('تم استلام طلب الحجز وسنقوم بالتواصل لتأكيده.','حجز طاولة');
@@ -862,30 +876,61 @@ if(checkoutBtn){
     const items = LS.get('menuItems', []);
     let total=0;
 
+    // [FIX] جهّز عناصر الطلب والإجمالي ومعرّف للعرض
+    const orderItems = cart.map(ci=>{
+      const it = items.find(x=>x.id===ci.id) || {};
+      return { itemId: ci.id, name: it.name || '', price: Number(it.price||0), qty: ci.qty };
+    });
+    total = orderItems.reduce((s,x)=> s + x.price * x.qty, 0);
+    let orderId = Math.floor(Date.now()/1000);
+    let __orderSuccessShown = false;
+
     const info = await askOrderInfo();
     if(!info) return;
 const { table, notes } = info;
 
 // بناء الأصناف + الإجمالي موجودين عندك فوق
-await window.supabaseBridge.createOrderSB({
-  order_name: '',
-  phone: '',
-  table_no: table,
-  notes,
-  items: orderItems.map(x => ({ id: x.itemId, name: x.name, price: x.price, qty: x.qty }))
-});
+// [FIX] تحقّق من الجسر ولفّ النداء بـ try/catch
+try{
+  if(!window.supabaseBridge || !window.supabaseBridge.createOrderSB){
+    throw new Error('Supabase bridge not ready');
+  }
+  await window.supabaseBridge.createOrderSB({
+    order_name: '',
+    phone: '',
+    table_no: table,
+    notes,
+    items: orderItems.map(x => ({ id: x.itemId, name: x.name, price: x.price, qty: x.qty }))
+  });
 
-// تنظيف السلة وعرض نجاح (ابقِ منطقك كما هو)
-LS.set('cart', []); updateCartCount(); renderCart(); closeCart();
-Modal.info('تم إرسال الطلب بنجاح! ستصلك رسالة تأكيد قريباً.','نجاح');
+  // تنظيف السلة وعرض نجاح (ابقِ منطقك كما هو) — [FIX] عرض مرّة واحدة
+  if(!__orderSuccessShown){
+    LS.set('cart', []); updateCartCount(); renderCart(); closeCart();
+    Modal.info('تم إرسال الطلب بنجاح! ستصلك رسالة تأكيد قريباً.','نجاح');
+    __orderSuccessShown = true;
+  }
+}catch(e){
+  console.error(e);
+  Modal.info('تعذّر إرسال الطلب، حاول لاحقاً.','خطأ');
+  return;
+}
 
 
     const notifs = LS.get('notifications', []);
     notifs.unshift({ id: crypto.randomUUID(), type:'order', title:`طلب جديد #${formatInt(orderId)}`, message:`إجمالي: ${formatPrice(total)} ل.س`, time: nowISO(), read:false });
     LS.set('notifications', notifs);
 
+    // [FIX] امنع التكرار مرة ثانية
+    if(!__orderSuccessShown){
+      LS.set('cart', []); updateCartCount(); renderCart(); closeCart();
+      Modal.info('تم إرسال الطلب بنجاح! ستصلك رسالة تأكيد قريباً.','نجاح');
+      __orderSuccessShown = true;
+    }
+
+/*
     LS.set('cart', []); updateCartCount(); renderCart(); closeCart();
     Modal.info('تم إرسال الطلب بنجاح! ستصلك رسالة تأكيد قريباً.','نجاح');
+*/
   });
 }
 
