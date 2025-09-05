@@ -102,9 +102,10 @@ list.unshift({
   table: r.table_no || '',
   duration: r.duration_minutes || 90,
   notes: r.notes || '',
-  status: r.status || 'new',    // ← مهم
+  status: r.status || 'new',    // مهم
   createdAt: new Date().toISOString()
 });
+
 
   LS.set('reservations', list);
   return r;
@@ -300,7 +301,7 @@ export async function syncAdminDataToLocal(){
     id: r.id, itemId: r.item_id, stars: r.stars, time: r.created_at
   })));
 
-  LS.set('reservations', (reservations.data||[]).map(r => ({
+LS.set('reservations', (reservations.data||[]).map(r => ({
   id: r.id,
   name: r.name,
   phone: r.phone,
@@ -310,8 +311,9 @@ export async function syncAdminDataToLocal(){
   table: r.table_no || '',
   duration: r.duration_minutes || 90,
   notes: r.notes || '',
-  status: r.status || 'new'     // ← مهم
+  status: r.status || 'new'     // مهم للحسابات والفلاتر
 })));
+
 
 
   // notifications: only orders for the admin drawer
