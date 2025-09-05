@@ -559,21 +559,11 @@ function toggleItem(id) {
 async function deleteItem(id) {
   const ok = await window.Modal.confirm('حذف هذا الطبق؟','تأكيد الحذف');
   if(!ok) return;
-  try{
-    if (window.supabaseBridge?.deleteMenuItemSB) {
-      await window.supabaseBridge.deleteMenuItemSB(id);
-      await window.supabaseBridge.syncAdminDataToLocal();
-    } else {
-      let items = LS.get('menuItems', []);
-      items = items.filter((i) => i.id !== id);
-      LS.set('menuItems', items);
-    }
-    renderItemsTable();
-  } catch (e) {
-    window.Modal.info('تعذر حذف الصنف من قاعدة البيانات','خطأ');
-  }
+  let items = LS.get('menuItems', []);
+  items = items.filter((i) => i.id !== id);
+  LS.set('menuItems', items);
+  renderItemsTable();
 }
-
 
 /* ======= NEW: Edit Item via Modal (with styled upload) ======= */
 function editItem(id){
@@ -675,14 +665,7 @@ function editItem(id){
 
     if(!name || !price || !catId){ window.Modal.info('يرجى تعبئة الاسم والسعر والقسم','تنبيه'); return; }
 
-async function finalize(imgSrc){
-  try{
-    if (window.supabaseBridge?.updateMenuItemSB){
-      await window.supabaseBridge.updateMenuItemSB(it.id, {
-        name, desc, price, img: imgSrc, cat_id: catId, available
-      });
-      await window.supabaseBridge.syncAdminDataToLocal();
-    } else {
+    function finalize(imgSrc){
       it.name = name;
       it.price = price;
       it.desc = desc;
@@ -690,13 +673,20 @@ async function finalize(imgSrc){
       it.available = available;
       it.img = imgSrc || it.img;
       LS.set('menuItems', items);
+      hideModal();
+      renderItemsTable();
+      const notifs = LS.get('notifications', []);
+      notifs.unshift({
+        id: crypto.randomUUID(),
+        type:'inventory',
+        title:'تعديل صنف',
+        message: name,
+        time: nowISO(),
+        read:false,
+      });
+      LS.set('notifications', notifs);
+      updateNotifCount(); updateOrderCounters(); updateReservationCounters();
     }
-    hideModal();
-    renderItemsTable();
-  } catch(e){
-    window.Modal.info('تعذر حفظ التعديلات في قاعدة البيانات','خطأ');
-  }
-}
 
     if (file){
       const reader = new FileReader();
@@ -765,76 +755,78 @@ if (catForm) {
 
 const itemForm = q('#itemForm');
 if (itemForm) {
-itemForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const fd = new FormData(form);
-  const name = (fd.get('name') || '').toString().trim();
-  const price = Number(fd.get('price'));
-  const desc = (fd.get('desc') || '').toString().trim();
-  const cat = fd.get('cat');
-  const fresh = fd.get('fresh') === 'on';
-  const urlField = (fd.get('img') || '').toString().trim();
-  const fileInput = q('#imgFile');
-  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+  itemForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const name = (fd.get('name') || '').toString().trim();
+    const price = Number(fd.get('price'));
+    const desc = (fd.get('desc') || '').toString().trim();
+    const cat = fd.get('cat');
+    const fresh = fd.get('fresh') === 'on';
+    const urlField = (fd.get('img') || '').toString().trim();
+    const fileInput = q('#imgFile');
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
-  if (!name || !price || !cat) {
-    setText('#itemMsg', 'يرجى تعبئة الاسم والسعر والقسم');
-    return;
-  }
+    if (!name || !price || !cat) {
+      setText('#itemMsg', 'يرجى تعبئة الاسم والسعر والقسم');
+      return;
+    }
 
-  async function finish(imgSrc){
-    try{
-      if (window.supabaseBridge?.createMenuItemSB){
-        await window.supabaseBridge.createMenuItemSB({
-          name, desc, price, img: imgSrc, cat_id: cat, available: true, fresh
-        });
-        // توحيد المصدر بعد الإضافة
-        await window.supabaseBridge.syncAdminDataToLocal();
-      } else {
-        const items = LS.get('menuItems', []);
-        items.unshift({
-          id: crypto.randomUUID(), name, price, desc, img: imgSrc,
-          catId: cat, fresh, rating: { avg: 0, count: 0 }, available: true
-        });
-        LS.set('menuItems', items);
-      }
+    function finalize(imgSrc) {
+      const items = LS.get('menuItems', []);
+      items.unshift({
+        id: crypto.randomUUID(),
+        name,
+        price,
+        desc,
+        img: imgSrc,
+        catId: cat,
+        fresh,
+        rating: { avg: 0, count: 0 },
+        available: true,
+      });
+      LS.set('menuItems', items);
       form.reset();
-      setText('#itemMsg', 'تمت إضافة الصنف وحفظه في قاعدة البيانات');
-
-      // إشعار داخلي
+      setText('#itemMsg', 'تمت إضافة الطبق بنجاح');
+      renderItemsTable();
       const notifs = LS.get('notifications', []);
       notifs.unshift({
-        id: crypto.randomUUID(), type: 'info', title: 'صنف جديد', message: name,
-        time: nowISO(), read: false
+        id: crypto.randomUUID(),
+        type: 'inventory',
+        title: 'إضافة صنف',
+        message: name,
+        time: nowISO(),
+        read: false,
       });
       LS.set('notifications', notifs);
       updateNotifCount();
       updateOrderCounters();
       updateReservationCounters();
-
-      // إخفاء المعاينة
-      const prevWrap = q('#imgPreviewWrap'); if (prevWrap) prevWrap.style.display = 'none';
-      const imgPrev  = q('#imgPreview'); if (imgPrev) imgPrev.removeAttribute('src');
-    }catch(err){
-      console.error(err);
-      setText('#itemMsg','تعذّر حفظ الصنف في Supabase — تأكّد من المفاتيح والاتصال');
+      // clear preview
+      const prevWrap = q('#imgPreviewWrap');
+      if (prevWrap) prevWrap.style.display = 'none';
+      const imgPrev = q('#imgPreview');
+      if (imgPrev) imgPrev.removeAttribute('src');
     }
-  }
 
-  if (file) {
-    const reader = new ();
-    reader.onload = () => finish(reader.result);
-    reader.onerror = () =>
-      finish(urlField || 'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop');
-    reader.readAsDataURL(file);
-  } else {
-    const fallback = urlField ||
-      'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop';
-    finish(fallback);
-  }
-});
-
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => finalize(reader.result);
+      reader.onerror = () =>
+        finalize(
+          urlField ||
+            'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop'
+        );
+      reader.readAsDataURL(file);
+    } else {
+      const fallback =
+        urlField ||
+        'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop';
+      finalize(fallback);
+    }
+  });
+}
 
 /* ===== Image picker & preview (file + URL) ===== */
 // 1) ربط الأزرار ليعملوا دائمًا (خارج change)
