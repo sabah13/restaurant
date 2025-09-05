@@ -136,6 +136,38 @@ export async function createCategorySB({ id, name, sort = 100 }){
   LS.set('categories', cats);
   return ins.data;
 }
+// ---------- Categories (update & delete) ----------
+export async function updateCategorySB(id, fields = {}){
+  const sb = window.supabase;
+  const payload = {};
+  if (typeof fields.name !== 'undefined') payload.name = fields.name;
+  if (typeof fields.sort !== 'undefined') payload.sort = fields.sort;
+  const up = await sb.from('categories').update(payload).eq('id', id).select().single();
+  if (up.error) throw up.error;
+
+  // Update LS cache for immediate UI feedback
+  const cats = LS.get('categories', []);
+  const i = cats.findIndex(c => c.id === id);
+  if (i >= 0) {
+    cats[i] = { ...cats[i], ...up.data };
+    LS.set('categories', cats);
+  }
+  return up.data;
+}
+
+export async function deleteCategorySB(id){
+  const sb = window.supabase;
+  const del = await sb.from('categories').delete().eq('id', id);
+  if (del.error) throw del.error;
+
+  // Reflect locally: remove cat + unlink items
+  const cats = LS.get('categories', []).filter(c => c.id !== id);
+  LS.set('categories', cats);
+  const items = LS.get('menuItems', []);
+  items.forEach(it => { if (it.catId === id) it.catId = null; });
+  LS.set('menuItems', items);
+  return true;
+}
 
 // ---------- Ratings ----------
 export async function createRatingSB({item_id, stars}){
@@ -235,10 +267,13 @@ export async function requireAdminOrRedirect(loginPath='login.html'){
 }
 
 // Expose to window for non-module scripts
+// Expose to window for non-module scripts
 window.supabaseBridge = {
   syncPublicCatalogToLocal,
   createOrderSB,
   createCategorySB,
+  updateCategorySB,
+  deleteCategorySB,
   createReservationSB,
   updateReservationSB,
   deleteReservationSB,
