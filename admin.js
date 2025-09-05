@@ -2,11 +2,10 @@
 (function () {
   const btn = document.querySelector('#logoutBtn');
   if (btn) {
-  btn.addEventListener('click', async () => {
-  try{ await window.supabase.auth.signOut(); }catch{}
-  location.href = 'login.html';
-});
-
+    btn.addEventListener('click', async () => {
+      try { await window.supabase.auth.signOut(); } catch {}
+      location.href = 'login.html';
+    });
   }
 })();
 
@@ -58,7 +57,7 @@ const setHTML = (sel, html) => {
   .app-modal{width:min(680px, 96vw);background:var(--card, #fff);color:var(--text, #1f2937);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
   .app-modal header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #eee;background:var(--bg, #fff)}
   .app-modal header h3{margin:0;font-size:18px}
-.app-modal .body{padding:16px 18px;max-height:min(70vh, calc(100dvh - 160px));overflow:auto}
+  .app-modal .body{padding:16px 18px;max-height:min(70vh, calc(100dvh - 160px));overflow:auto}
   .app-modal .actions{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid #eee;background:var(--bg,#fff)}
   .app-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;outline:none}
   .app-input:focus{border-color:var(--primary,#d64848); box-shadow:0 0 0 3px var(--ring, rgba(214,72,72,.2))}
@@ -378,18 +377,6 @@ function renderOrdersTable() {
 }
 
 /* ================= Notifications ================= */
-function updateNotifCount() {
-  const ns = LS.get('notifications', []);
-  const unread = ns.filter((n) => !n.read).length;
-  const el = q('#notifCount');
-  if (!el) return;
-  if (unread > 0) {
-    el.style.display = 'inline-block';
-    el.textContent = unread;
-  } else {
-    el.style.display = 'none';
-  }
-}
 function renderNotifs() {
   const box = q('#notifList');
   if (!box) return;
@@ -417,6 +404,18 @@ function renderNotifs() {
   `;
     })
     .join('');
+}
+function updateNotifCount() {
+  const ns = LS.get('notifications', []);
+  const unread = ns.filter((n) => !n.read).length;
+  const el = q('#notifCount');
+  if (!el) return;
+  if (unread > 0) {
+    el.style.display = 'inline-block';
+    el.textContent = unread;
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 /* ================= Menu & Categories Management ================= */
@@ -514,10 +513,10 @@ function editCat(id){
     <div class="app-grid-1">
       <div>
         <label class="app-label">اسم القسم</label>
-        <input class="app-input" id="ec_name" type="text" value="${c.name || ''}" />
+        <input class="app-input" id="ec_name" type="text" value="\${c.name || ''}" />
       </div>
       <div class="small" style="color:var(--muted);margin-top:8px">
-        المعرّف: <code>${c.id}</code> (لا يمكن تغييره من هنا)
+        المعرّف: <code>\${c.id}</code> (لا يمكن تغييره من هنا)
       </div>
     </div>
   `;
@@ -556,22 +555,40 @@ function editCat(id){
 }
 
 
-/* ======= Toggle & Delete Item (unchanged) ======= */
-function toggleItem(id) {
-  const items = LS.get('menuItems', []); 
+/* ======= Toggle & Delete Item (SB-aware) ======= */
+async function toggleItem(id) {
+  const items = LS.get('menuItems', []);
   const it = items.find((x) => x.id === id);
   if (!it) return;
-  it.available = !it.available;
-  LS.set('menuItems', items);
+  try{
+    if(window.supabaseBridge?.updateMenuItemSB){
+      await window.supabaseBridge.updateMenuItemSB(id, { available: !it.available });
+      await window.supabaseBridge.syncAdminDataToLocal();
+    }else{
+      it.available = !it.available;
+      LS.set('menuItems', items);
+    }
+  }catch(e){
+    window.Modal.info('تعذّر تعديل إتاحة الصنف','خطأ');
+  }
   renderItemsTable();
 }
 
 async function deleteItem(id) {
   const ok = await window.Modal.confirm('حذف هذا الطبق؟','تأكيد الحذف');
   if(!ok) return;
-  let items = LS.get('menuItems', []);
-  items = items.filter((i) => i.id !== id);
-  LS.set('menuItems', items);
+  try{
+    if(window.supabaseBridge?.deleteMenuItemSB){
+      await window.supabaseBridge.deleteMenuItemSB(id);
+      await window.supabaseBridge.syncAdminDataToLocal();
+    }else{
+      let items = LS.get('menuItems', []);
+      items = items.filter((i) => i.id !== id);
+      LS.set('menuItems', items);
+    }
+  }catch(e){
+    window.Modal.info('تعذّر حذف الصنف من قاعدة البيانات','خطأ');
+  }
   renderItemsTable();
 }
 
@@ -675,27 +692,38 @@ function editItem(id){
 
     if(!name || !price || !catId){ window.Modal.info('يرجى تعبئة الاسم والسعر والقسم','تنبيه'); return; }
 
-    function finalize(imgSrc){
-      it.name = name;
-      it.price = price;
-      it.desc = desc;
-      it.catId = catId;
-      it.available = available;
-      it.img = imgSrc || it.img;
-      LS.set('menuItems', items);
-      hideModal();
-      renderItemsTable();
-      const notifs = LS.get('notifications', []);
-      notifs.unshift({
-        id: crypto.randomUUID(),
-        type:'inventory',
-        title:'تعديل صنف',
-        message: name,
-        time: nowISO(),
-        read:false,
-      });
-      LS.set('notifications', notifs);
-      updateNotifCount(); updateOrderCounters(); updateReservationCounters();
+    async function finalize(imgSrc){
+      try{
+        if(window.supabaseBridge?.updateMenuItemSB){
+          await window.supabaseBridge.updateMenuItemSB(it.id, {
+            name, price, desc, catId, available, img: imgSrc
+          });
+          await window.supabaseBridge.syncAdminDataToLocal();
+        }else{
+          it.name = name;
+          it.price = price;
+          it.desc = desc;
+          it.catId = catId;
+          it.available = available;
+          it.img = imgSrc || it.img;
+          LS.set('menuItems', items);
+        }
+        hideModal();
+        renderItemsTable();
+        const notifs = LS.get('notifications', []);
+        notifs.unshift({
+          id: crypto.randomUUID(),
+          type:'inventory',
+          title:'تعديل صنف',
+          message: name,
+          time: nowISO(),
+          read:false,
+        });
+        LS.set('notifications', notifs);
+        updateNotifCount(); updateOrderCounters(); updateReservationCounters();
+      }catch(e){
+        window.Modal.info('تعذّر حفظ التعديل في قاعدة البيانات','خطأ');
+      }
     }
 
     if (file){
@@ -783,41 +811,52 @@ if (itemForm) {
       return;
     }
 
-    function finalize(imgSrc) {
-      const items = LS.get('menuItems', []);
-      items.unshift({
-        id: crypto.randomUUID(),
-        name,
-        price,
-        desc,
-        img: imgSrc,
-        catId: cat,
-        fresh,
-        rating: { avg: 0, count: 0 },
-        available: true,
-      });
-      LS.set('menuItems', items);
-      form.reset();
-      setText('#itemMsg', 'تمت إضافة الطبق بنجاح');
-      renderItemsTable();
-      const notifs = LS.get('notifications', []);
-      notifs.unshift({
-        id: crypto.randomUUID(),
-        type: 'inventory',
-        title: 'إضافة صنف',
-        message: name,
-        time: nowISO(),
-        read: false,
-      });
-      LS.set('notifications', notifs);
-      updateNotifCount();
-      updateOrderCounters();
-      updateReservationCounters();
-      // clear preview
-      const prevWrap = q('#imgPreviewWrap');
-      if (prevWrap) prevWrap.style.display = 'none';
-      const imgPrev = q('#imgPreview');
-      if (imgPrev) imgPrev.removeAttribute('src');
+    async function finalize(imgSrc) {
+      try{
+        if(window.supabaseBridge?.createMenuItemSB){
+          await window.supabaseBridge.createMenuItemSB({
+            name, desc, price, img: imgSrc, cat_id: cat, available: true, fresh
+          });
+          await window.supabaseBridge.syncAdminDataToLocal();
+        }else{
+          const items = LS.get('menuItems', []);
+          items.unshift({
+            id: crypto.randomUUID(),
+            name,
+            price,
+            desc,
+            img: imgSrc,
+            catId: cat,
+            fresh,
+            rating: { avg: 0, count: 0 },
+            available: true,
+          });
+          LS.set('menuItems', items);
+        }
+        form.reset();
+        setText('#itemMsg', 'تمت إضافة الطبق بنجاح');
+        renderItemsTable();
+        const notifs = LS.get('notifications', []);
+        notifs.unshift({
+          id: crypto.randomUUID(),
+          type: 'inventory',
+          title: 'إضافة صنف',
+          message: name,
+          time: nowISO(),
+          read: false,
+        });
+        LS.set('notifications', notifs);
+        updateNotifCount();
+        updateOrderCounters();
+        updateReservationCounters();
+        // clear preview
+        const prevWrap = q('#imgPreviewWrap');
+        if (prevWrap) prevWrap.style.display = 'none';
+        const imgPrev = q('#imgPreview');
+        if (imgPrev) imgPrev.removeAttribute('src');
+      }catch(e){
+        setText('#itemMsg', 'تعذّر إضافة الطبق إلى قاعدة البيانات');
+      }
     }
 
     if (file) {
