@@ -13,14 +13,22 @@
   window.supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON);
 </script>
 
-<!-- جسر Supabase الذي حمّلته -->
+<!-- جسر Supabase -->
 <script type="module" src="supabase-bridge.js"></script>
 
-<!-- مزامنة الكتالوج للـlocalStorage قبل script.js -->
+<!-- (اختياري) مزامنة الكتالوج العام قبل سكربتات الواجهة -->
 <script type="module">
   import { syncPublicCatalogToLocal } from './supabase-bridge.js';
   await syncPublicCatalogToLocal();
 </script>
+
+<!-- الأهم: حارس الأدمن + مزامنة بيانات الأدمن (تجلب الحجوزات من DB إلى localStorage) -->
+<script type="module">
+  import { requireAdminOrRedirect, syncAdminDataToLocal } from "./supabase-bridge.js";
+  await requireAdminOrRedirect('login.html');   // إن لم تكن أدمن سيعيدك لتسجيل الدخول
+  await syncAdminDataToLocal();                 // يجلب الحجوزات/الطلبات/… إلى localStorage
+</script>
+
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
