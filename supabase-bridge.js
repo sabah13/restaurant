@@ -84,31 +84,45 @@ export async function createOrderSB({order_name, phone, table_no, notes, items})
 // ---------- Reservations ----------
 export async function createReservationSB({name, phone, iso, people, kind='table', table='', notes, duration_minutes=90}){
   const sb = window.supabase;
-  const ins = await sb.from('reservations').insert([{
+
+  // إدراج بدون select لتوافق صلاحيات anon (insert فقط)
+  const insOnly = await sb.from('reservations').insert([{
     name, phone, date: iso, people, kind, notes,
     duration_minutes, table_no: table
-  }]).select().single();
-  if (ins.error) throw ins.error;
+  }]);
+  if (insOnly.error) throw insOnly.error;
 
-  const r = ins.data;
+  // نبني سجل محلي لواجهة المستخدم (بدون الاعتماد على إرجاع السيرفر)
+  const r = {
+    id: (crypto?.randomUUID?.() || `tmp-${Date.now()}`), // معرف محلي للاستخدام في الواجهة فقط
+    name,
+    phone,
+    date: iso,                 // تاريخ الإرسال (سيتزامن الحقيقي من صفحة الأدمن)
+    people,
+    kind,
+    table_no: table || '',
+    duration_minutes: duration_minutes || 90,
+    notes: notes || '',
+    status: 'new'
+  };
+
   const list = LS.get('reservations', []);
-list.unshift({
-  id: r.id,
-  name: r.name,
-  phone: r.phone,
-  date: r.date,                 // استخدم تاريخ السيرفر
-  people: r.people,
-  kind: r.kind,
-  table: r.table_no || '',
-  duration: r.duration_minutes || 90,
-  notes: r.notes || '',
-  status: r.status || 'new',    // مهم
-  createdAt: new Date().toISOString()
-});
-
+  list.unshift({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    date: r.date,                 // استخدم تاريخ الإرسال محليًا
+    people: r.people,
+    kind: r.kind,
+    table: r.table_no || '',
+    duration: r.duration_minutes || 90,
+    notes: r.notes || '',
+    status: r.status || 'new',    // مهم
+    createdAt: new Date().toISOString()
+  });
 
   LS.set('reservations', list);
-  return r;
+  return true;
 }
 
 export async function updateReservationSB(id, fields){
@@ -301,20 +315,18 @@ export async function syncAdminDataToLocal(){
     id: r.id, itemId: r.item_id, stars: r.stars, time: r.created_at
   })));
 
-LS.set('reservations', (reservations.data||[]).map(r => ({
-  id: r.id,
-  name: r.name,
-  phone: r.phone,
-  date: r.date,
-  people: r.people,
-  kind: r.kind,
-  table: r.table_no || '',
-  duration: r.duration_minutes || 90,
-  notes: r.notes || '',
-  status: r.status || 'new'     // مهم للحسابات والفلاتر
-})));
-
-
+  LS.set('reservations', (reservations.data||[]).map(r => ({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    date: r.date,
+    people: r.people,
+    kind: r.kind,
+    table: r.table_no || '',
+    duration: r.duration_minutes || 90,
+    notes: r.notes || '',
+    status: r.status || 'new'     // مهم للحسابات والفلاتر
+  })));
 
   // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
@@ -327,8 +339,8 @@ LS.set('reservations', (reservations.data||[]).map(r => ({
   }));
   LS.set('notifications', notifOrders);
   try {
-  document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
-} catch {}
+    document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
+  } catch {}
 
   return true;
 }
