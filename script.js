@@ -16,24 +16,11 @@ const LS = {
 const nowISO = ()=> new Date().toISOString();
 
 function seedIfNeeded(){
-  if(!localStorage.getItem('categories')){
-    const cats=[
-      {id:'starters', name:'المقبلات'},
-      {id:'mains', name:'الأطباق الرئيسية'},
-      {id:'desserts', name:'الحلويات'},
-      {id:'drinks', name:'المشروبات'}
-    ];
-    LS.set('categories', cats);
-  }
-  if(!localStorage.getItem('menuItems')){
-    const sampleImg = "https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop";
-    const items=[
-      {id:crypto.randomUUID(), name:'تبولة', price:14, desc:'سلطة البقدونس الطازجة مع الطماطم والبرغل', img:sampleImg, catId:'starters', fresh:true, rating:{avg:4.8, count:156}, available:true},
-      {id:crypto.randomUUID(), name:'متبل باذنجان', price:16, desc:'باذنجان مشوي مع الطحينة والثوم والليمون', img:sampleImg, catId:'starters', fresh:true, rating:{avg:4.6, count:89}, available:true},
-      {id:crypto.randomUUID(), name:'حمص بالطحينة', price:18, desc:'حمص كريمي بزيت الزيتون والطحينة والليمون', img:sampleImg, catId:'starters', fresh:true, rating:{avg:4.7, count:124}, available:true},
-    ];
-    LS.set('menuItems', items);
-  }
+
+  // لا نُضيف بيانات تجريبية. فقط نضمن وجود المفاتيح كمصفوفات فارغة
+if(!localStorage.getItem('categories')) LS.set('categories', []);
+if(!localStorage.getItem('menuItems'))  LS.set('menuItems', []);
+
   if(!localStorage.getItem('orders')) LS.set('orders', []);
   if(!localStorage.getItem('notifications')) LS.set('notifications', []);
   if(!localStorage.getItem('ratings')) LS.set('ratings', []);
