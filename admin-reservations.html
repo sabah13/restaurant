@@ -1,3 +1,4 @@
+<!-- admin-reservations.html (كامل بعد التعديل) -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -447,7 +448,6 @@
     function render(){
       updateKPIs();
 
-// القادم أولاً ثم الماضي، وداخل كل مجموعة ترتيب زمني تصاعدي
 const now = Date.now();
 const allRecords = listAll().sort((a,b)=>{
   const ta = new Date(a.date).getTime() - now;
@@ -822,10 +822,11 @@ async remove(id){
 
     // تحديث من تبويب آخر
     window.addEventListener('storage', (e)=>{ if(e.key==='reservations') render(); });
+    // إعادة الرسم فور اكتمال مزامنة الأدمن
+    document.addEventListener('sb:admin-synced', ()=> render());
 
     // تشغيل أولي
     render();
-  })();
   </script>
 
   <!-- مودال عام + إغلاق بالنقر خارج/زر Esc -->
