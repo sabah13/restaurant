@@ -136,63 +136,6 @@ export async function createCategorySB({ id, name, sort = 100 }){
   LS.set('categories', cats);
   return ins.data;
 }
-// ---------- Menu Items ----------
-export async function createMenuItemSB({ name, desc = '', price = 0, img = '', cat_id, available = true, fresh = false }){
-  const sb = window.supabase;
-  const ins = await sb.from('menu_items').insert([{
-    name, "desc": desc, price, img, cat_id, available, fresh
-  }]).select().single();
-  if (ins.error) throw ins.error;
-
-  // حدّث الكاش المحلي لظهور الصنف فورًا
-  const it = ins.data;
-  const items = LS.get('menuItems', []);
-  items.unshift({
-    id: it.id, name: it.name, desc: it["desc"], price: Number(it.price)||0,
-    img: it.img, catId: it.cat_id, fresh: !!it.fresh,
-    rating: { avg: Number(it.rating_avg||0), count: Number(it.rating_count||0) },
-    available: !!it.available
-  });
-  LS.set('menuItems', items);
-  return it;
-}
-
-export async function updateMenuItemSB(id, fields = {}){
-  const sb = window.supabase;
-  const payload = {};
-  if ('name' in fields) payload.name = fields.name;
-  if ('desc' in fields) payload["desc"] = fields.desc;
-  if ('price' in fields) payload.price = fields.price;
-  if ('img' in fields) payload.img = fields.img;
-  if ('cat_id' in fields) payload.cat_id = fields.cat_id;
-  if ('available' in fields) payload.available = fields.available;
-  if ('fresh' in fields) payload.fresh = fields.fresh;
-
-  const up = await sb.from('menu_items').update(payload).eq('id', id).select().single();
-  if (up.error) throw up.error;
-
-  // حدّث الكاش المحلي
-  const items = LS.get('menuItems', []);
-  const i = items.findIndex(x => x.id === id);
-  if (i >= 0) {
-    const it = up.data;
-    items[i] = {
-      ...items[i],
-      id: it.id, name: it.name, desc: it["desc"], price: Number(it.price)||0,
-      img: it.img, catId: it.cat_id, fresh: !!it.fresh, available: !!it.available
-    };
-    LS.set('menuItems', items);
-  }
-  return up.data;
-}
-
-export async function deleteMenuItemSB(id){
-  const sb = window.supabase;
-  const del = await sb.from('menu_items').delete().eq('id', id);
-  if (del.error) throw del.error;
-  LS.set('menuItems', (LS.get('menuItems', [])||[]).filter(i => i.id !== id));
-  return true;
-}
 
 // ---------- Ratings ----------
 export async function createRatingSB({item_id, stars}){
@@ -296,12 +239,6 @@ window.supabaseBridge = {
   syncPublicCatalogToLocal,
   createOrderSB,
   createCategorySB,
-
-  // --- Menu Items CRUD (جديد) ---
-  createMenuItemSB,
-  updateMenuItemSB,
-  deleteMenuItemSB,
-
   createReservationSB,
   updateReservationSB,
   deleteReservationSB,
