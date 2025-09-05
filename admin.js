@@ -791,10 +791,18 @@ if (catForm) {
 }
 
 
+/* ========= FIX: منع التكرار عند إضافة صنف ========= */
 const itemForm = q('#itemForm');
+let __addItemBusy = false; // قفل يمنع الطلبات المتكررة السريعة
+
 if (itemForm) {
-  itemForm.addEventListener('submit', (e) => {
+  itemForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // تجاهل أي نقرات/إرسال إضافي أثناء التنفيذ
+    if (__addItemBusy) return;
+    __addItemBusy = true;
+
     const form = e.target;
     const fd = new FormData(form);
     const name = (fd.get('name') || '').toString().trim();
@@ -806,8 +814,23 @@ if (itemForm) {
     const fileInput = q('#imgFile');
     const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
+    // تعطيل زر الإرسال مؤقتاً + مؤشر مشغول
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset.label = submitBtn.textContent;
+      submitBtn.textContent = 'جاري الإضافة...';
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
+
     if (!name || !price || !cat) {
       setText('#itemMsg', 'يرجى تعبئة الاسم والسعر والقسم');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.label || 'إضافة الطبق';
+        submitBtn.removeAttribute('aria-busy');
+      }
+      __addItemBusy = false;
       return;
     }
 
@@ -859,20 +882,28 @@ if (itemForm) {
       }
     }
 
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => finalize(reader.result);
-      reader.onerror = () =>
-        finalize(
-          urlField ||
-            'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop'
-        );
-      reader.readAsDataURL(file);
-    } else {
-      const fallback =
-        urlField ||
-        'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop';
-      finalize(fallback);
+    try {
+      const defaultUrl = 'https://images.unsplash.com/photo-1543352634-8730b1c3c34b?q=80&w=1200&auto=format&fit=crop';
+      let imgSrc;
+      if (file) {
+        imgSrc = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve(urlField || defaultUrl);
+          reader.readAsDataURL(file);
+        });
+      } else {
+        imgSrc = urlField || defaultUrl;
+      }
+      await finalize(imgSrc);
+    } finally {
+      // إعادة تفعيل الزر وفتح القفل
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.label || 'إضافة الطبق';
+        submitBtn.removeAttribute('aria-busy');
+      }
+      __addItemBusy = false;
     }
   });
 }
