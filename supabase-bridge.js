@@ -92,12 +92,20 @@ export async function createReservationSB({name, phone, iso, people, kind='table
 
   const r = ins.data;
   const list = LS.get('reservations', []);
-  list.unshift({
-    id: r.id, name: r.name, phone: r.phone, date: r.date,
-    people: r.people, kind: r.kind, table: r.table_no || '',
-    duration: r.duration_minutes || 90, notes: r.notes || '',
-    createdAt: new Date().toISOString()
-  });
+list.unshift({
+  id: r.id,
+  name: r.name,
+  phone: r.phone,
+  date: r.date,                 // استخدم تاريخ السيرفر
+  people: r.people,
+  kind: r.kind,
+  table: r.table_no || '',
+  duration: r.duration_minutes || 90,
+  notes: r.notes || '',
+  status: r.status || 'new',    // ← مهم
+  createdAt: new Date().toISOString()
+});
+
   LS.set('reservations', list);
   return r;
 }
@@ -293,10 +301,18 @@ export async function syncAdminDataToLocal(){
   })));
 
   LS.set('reservations', (reservations.data||[]).map(r => ({
-    id: r.id, name: r.name, phone: r.phone, date: r.date,
-    people: r.people, kind: r.kind, table: r.table_no || '',
-    duration: r.duration_minutes || 90, notes: r.notes || ''
-  })));
+  id: r.id,
+  name: r.name,
+  phone: r.phone,
+  date: r.date,
+  people: r.people,
+  kind: r.kind,
+  table: r.table_no || '',
+  duration: r.duration_minutes || 90,
+  notes: r.notes || '',
+  status: r.status || 'new'     // ← مهم
+})));
+
 
   // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
@@ -308,6 +324,10 @@ export async function syncAdminDataToLocal(){
     read: false
   }));
   LS.set('notifications', notifOrders);
+  try {
+  document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
+} catch {}
+
   return true;
 }
 
