@@ -288,6 +288,14 @@
 
   <script src="admin.js"></script>
   <script src="admin-multipage.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    try { await window.supabaseBridge?.requireAdminOrRedirect('login.html'); } catch(e){}
+    try { await window.supabaseBridge?.syncAdminDataToLocal(); } catch(e){}
+    try { updateAll?.(); } catch(e){}
+    try { window.dispatchEvent(new Event('storage')); } catch(e){}
+  });
+</script>
 
   <script>
   (function(){
