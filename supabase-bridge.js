@@ -315,18 +315,19 @@ export async function syncAdminDataToLocal(){
     id: r.id, itemId: r.item_id, stars: r.stars, time: r.created_at
   })));
 
-  LS.set('reservations', (reservations.data||[]).map(r => ({
-    id: r.id,
-    name: r.name,
-    phone: r.phone,
-    date: r.date,
-    people: r.people,
-    kind: r.kind,
-    table: r.table_no || '',
-    duration: r.duration_minutes || 90,
-    notes: r.notes || '',
-    status: r.status || 'new'     // مهم للحسابات والفلاتر
-  })));
+ LS.set('reservations', (reservations.data||[]).map(r => ({
+  id: r.id,
+  name: r.name,
+  phone: r.phone,
+  date: r.date,
+  people: r.people,
+  kind: r.kind,
+  table: r.table_no || '',
+  duration: r.duration_minutes || 90,
+  notes: r.notes || '',
+  status: r.status || 'new'     // مهم للفلاتر والعدادات
+})));
+
 
   // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
@@ -337,10 +338,11 @@ export async function syncAdminDataToLocal(){
     time: o.createdAt,
     read: false
   }));
-  LS.set('notifications', notifOrders);
+LS.set('notifications', notifOrders);
   try {
-    document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
-  } catch {}
+  document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
+} catch {}
+
 
   return true;
 }
