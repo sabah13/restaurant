@@ -351,6 +351,9 @@
     /* توحيد */
     function norm(r){
       if(!r.status) r.status='new';
+      // بعد السطر 353
+if (r.status === 'cancelled') r.status = 'canceled';
+
       if(typeof r.people==='string') r.people = Number(toLatn(r.people))||1;
       if(r.iso){ r.date=r.iso; }
       else if(r.date && r.time){
@@ -829,7 +832,18 @@ const iso = data.iso || (data.date ? new Date(data.date).toISOString() : new Dat
 document.addEventListener('sb:admin-synced', ()=> render());
 if (document.readyState !== 'loading') render();
 else document.addEventListener('DOMContentLoaded', render);
-
+  (async () => {
+    try {
+      const LS = window.LS || {
+        get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } }
+      };
+      const hasData = (LS.get('reservations', []) || []).length > 0;
+      if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
+        await window.supabaseBridge.syncAdminDataToLocal();
+        if (typeof render === 'function') render();
+      }
+    } catch(e){}
+  })();
     // تشغيل أولي
     render();
   </script>
