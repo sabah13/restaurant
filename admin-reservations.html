@@ -849,7 +849,7 @@ else document.addEventListener('DOMContentLoaded', render);
 
   <!-- Fallback Sync: مزامنة احتياطية لضمان تعبئة الحجوزات ثم إعادة الرسم -->
   <script>
-    (async () => {
+        (async () => {
       try {
         const LS = window.LS || { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } } };
         const hasData = (LS.get('reservations', []) || []).length > 0;
@@ -860,6 +860,7 @@ else document.addEventListener('DOMContentLoaded', render);
         }
       } catch(e){}
     })();
+
   </script>
 
   <!-- مودال عام + إغلاق بالنقر خارج/زر Esc -->
