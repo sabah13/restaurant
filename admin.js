@@ -149,7 +149,7 @@ const notifDrawer = q('#notifDrawer');
 const closeNotif = q('#closeNotif');
 
 if (notifBtn && notifDrawer) {
-  notifBtn.addEventListener('click', () => notifDrawer.classList.add('open'));
+notifBtn.addEventListener('click', () => { try{ renderNotifs(); }catch(e){}; notifDrawer.classList.add('open'); });
 }
 if (closeNotif && notifDrawer) {
   closeNotif.addEventListener('click', () => notifDrawer.classList.remove('open'));
@@ -167,9 +167,10 @@ on('#markAllRead', 'click', () => {
 
 /* NEW: استمع لتغييرات الحجوزات أيضًا */
 window.addEventListener('storage', (e) => {
-  if (['notifications', 'orders', 'menuItems', 'ratings', 'categories', 'reservations'].includes(e.key)) {
-    updateAll();
-  }
+  if (!e || !e.key || ['notifications','orders','menuItems','ratings','categories','reservations'].includes(e.key)) {
+  updateAll();
+}
+
 });
 
 /* =====================================================
