@@ -533,11 +533,19 @@ const allRecords = listAll().sort((a,b)=>{
   async function changeStatus(id, to){
   try{
     await window.supabaseBridge.updateReservationSB(id, { status: to });
-    const ns = LS.get('notifications',[]);
-    ns.unshift({ id: crypto.randomUUID(), title:'تحديث حالة حجز', body:`الحالة الجديدة: ${to}`, time:new Date().toISOString(), read:false });
+      const ns = LS.get('notifications', []);
+    ns.unshift({
+      id: crypto.randomUUID(),
+      type: 'reservation',
+      title: `تحديث حالة الحجز #${id}`,
+      message: `الحالة الجديدة: ${to}`,
+      time: new Date().toISOString(),
+      read: false
+    });
     LS.set('notifications', ns);
     await window.supabaseBridge.syncAdminDataToLocal();
     render();
+
   }catch(e){
     Modal?.info?.('تعذّر تحديث الحالة','خطأ');
   }
