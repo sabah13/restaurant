@@ -26,15 +26,17 @@
 <script type="module">
   import { requireAdminOrRedirect, syncAdminDataToLocal } from "./supabase-bridge.js";
   await requireAdminOrRedirect('login.html');   // إن لم تكن أدمن سيعيدك لتسجيل الدخول
-  await syncAdminDataToLocal();                 // يجلب الحجوزات/الطلبات/… إلى localStorage
-  document.dispatchEvent(new Event('sb:admin-synced')); // 🔔 أبلغ الصفحة أن البيانات وصلت
-</script>
+  await syncAdminDataToLocal();  
+ document.dispatchEvent(new Event('sb:admin-synced')); // 🔔 أبلغ الصفحة أن البيانات وصلت</script>
+
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>لوحة التحكم – معلومات الحجوزات</title>
   <link rel="stylesheet" href="styles.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+ 
 
   <script>
   (function(){
@@ -286,8 +288,18 @@
 
   <script src="admin.js"></script>
   <script src="admin-multipage.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    try { await window.supabaseBridge?.requireAdminOrRedirect('login.html'); } catch(e){}
+    try { await window.supabaseBridge?.syncAdminDataToLocal(); } catch(e){}
+    try { updateAll?.(); } catch(e){}
+    try { window.dispatchEvent(new Event('storage')); } catch(e){}
+  /* ... لديك الأسطر 294-296 ... */
+  try { renderNotifs?.(); } catch(e){}
 
-  <!-- سكربت الصفحة الرئيسي -->
+  });
+</script>
+
   <script>
   (function(){
     /* ===== Helpers ===== */
@@ -531,26 +543,27 @@
       nextBtn.disabled = (R.page>=Math.ceil(total/R.size) || Math.ceil(total/R.size)===0);
     }
 
-    async function changeStatus(id, to){
-      try{
-        await window.supabaseBridge.updateReservationSB(id, { status: to });
-        const ns = LS.get('notifications', []);
-        ns.unshift({
-          id: crypto.randomUUID(),
-          type: 'reservation',
-          title: `تحديث حالة الحجز #${id}`,
-          message: `الحالة الجديدة: ${to}`,
-          time: new Date().toISOString(),
-          read: false
-        });
-        LS.set('notifications', ns);
-        await window.supabaseBridge.syncAdminDataToLocal();
-        render();
+  async function changeStatus(id, to){
+  try{
+    await window.supabaseBridge.updateReservationSB(id, { status: to });
+      const ns = LS.get('notifications', []);
+    ns.unshift({
+      id: crypto.randomUUID(),
+      type: 'reservation',
+      title: `تحديث حالة الحجز #${id}`,
+      message: `الحالة الجديدة: ${to}`,
+      time: new Date().toISOString(),
+      read: false
+    });
+    LS.set('notifications', ns);
+    await window.supabaseBridge.syncAdminDataToLocal();
+    render();
 
-      }catch(e){
-        Modal?.info?.('تعذّر تحديث الحالة','خطأ');
-      }
-    }
+  }catch(e){
+    Modal?.info?.('تعذّر تحديث الحالة','خطأ');
+  }
+}
+
 
     function openForm(title, r, onSubmit){
       const html = `
@@ -625,16 +638,16 @@
       },
       edit(id){
         const list=listAll(); const r=list.find(x=>x.id===id); if(!r) return;
-        openForm('تعديل الحجز', r, async (data)=>{
-          try{
-            await window.supabaseBridge.updateReservationSB(r.id, {
-              name:data.name, phone:data.phone, date:data.date, people:data.people,
-              table_no:data.table, duration_minutes:data.duration, status:data.status, notes:data.notes
-            });
-            await window.supabaseBridge.syncAdminDataToLocal();
-            render();
-          }catch(e){ Modal?.info?.('تعذّر الحفظ','خطأ'); }
-        });
+openForm('تعديل الحجز', r, async (data)=>{
+  try{
+    await window.supabaseBridge.updateReservationSB(r.id, {
+      name:data.name, phone:data.phone, date:data.date, people:data.people,
+table_no:data.table, duration_minutes:data.duration, status:data.status, notes:data.notes
+    });
+    await window.supabaseBridge.syncAdminDataToLocal();
+    render();
+  }catch(e){ Modal?.info?.('تعذّر الحفظ','خطأ'); }
+});
       },
       assignTable(id){
         const list=listAll(); const r=list.find(x=>x.id===id); if(!r) return;
@@ -645,31 +658,32 @@
           title:'تعيين طاولة', bodyHTML:body,
           actions:[
             {label:'إلغاء', className:'btn btn-ghost', onClick: hideModal},
-            {label:'حفظ', className:'btn btn-primary', onClick: async ()=>{
-              const n=(document.getElementById('tableInp').value||'').trim();
-              const candidate = Object.assign({}, r, { table:n });
-              const conflicts = conflictsFor(candidate, list, r.id);
-              if(conflicts.length){
-                const s=conflicts.map(c=>{
-                  const over = intersectTables(candidate.table, c.table);
-                  const dt=splitDateTime(c.date);
-                  return '• #'+String(c.id).slice(0,6)+' — طاولة '+over.join(', ')+' — '+dt.d+' '+dt.t;
-                }).join('<br>');
-                const proceed = await new Promise(resolve=>{
-                  showModal({ title:'تعارضات مكتشفة',
-                    bodyHTML:`<div class="small">وُجدت تعارضات على الطاولات:</div><div class="small" style="margin-top:6px">${s}</div>`,
-                    actions:[{label:'تراجع', className:'btn btn-ghost', onClick:()=>{hideModal();resolve(false)}},
-                             {label:'متابعة', className:'btn btn-primary', onClick:()=>{hideModal();resolve(true)}}]
-                  });
-                });
-                if(!proceed) return;
-              }
-              try{
-                await window.supabaseBridge.updateReservationSB(r.id, { table_no:n });
-                await window.supabaseBridge.syncAdminDataToLocal();
-                hideModal(); render();
-              }catch(e){ Modal?.info?.('تعذّر الحفظ','خطأ'); }
-            }]
+  {label:'حفظ', className:'btn btn-primary', onClick: async ()=>{
+  const n=(document.getElementById('tableInp').value||'').trim();
+  const candidate = Object.assign({}, r, { table:n });
+  const conflicts = conflictsFor(candidate, list, r.id);
+  if(conflicts.length){
+    const s=conflicts.map(c=>{
+      const over = intersectTables(candidate.table, c.table);
+      const dt=splitDateTime(c.date);
+      return '• #'+String(c.id).slice(0,6)+' — طاولة '+over.join(', ')+' — '+dt.d+' '+dt.t;
+    }).join('<br>');
+    const proceed = await new Promise(resolve=>{
+      showModal({ title:'تعارضات مكتشفة',
+        bodyHTML:`<div class="small">وُجدت تعارضات على الطاولات:</div><div class="small" style="margin-top:6px">${s}</div>`,
+        actions:[{label:'تراجع', className:'btn btn-ghost', onClick:()=>{hideModal();resolve(false)}},
+                 {label:'متابعة', className:'btn btn-primary', onClick:()=>{hideModal();resolve(true)}}]
+      });
+    });
+    if(!proceed) return;
+  }
+  try{
+await window.supabaseBridge.updateReservationSB(r.id, { table_no:n });
+    await window.supabaseBridge.syncAdminDataToLocal();
+    hideModal(); render();
+  }catch(e){ Modal?.info?.('تعذّر الحفظ','خطأ'); }
+}}]
+
         });
       },
       print(id){
@@ -743,20 +757,21 @@
         w.document.close();
       },
 
-      async remove(id){
-        const ok = await new Promise(resolve=>{
-          showModal({ title:'تأكيد الحذف', bodyHTML:'هل تريد حذف هذا الحجز؟',
-            actions:[{label:'إلغاء', className:'btn btn-ghost', onClick:()=>{hideModal();resolve(false)}},
-                     {label:'حذف', className:'btn btn-danger', onClick:()=>{hideModal();resolve(true)}}]
-          });
-        });
-        if(!ok) return;
-        try{
-          await window.supabaseBridge.deleteReservationSB(id);
-          await window.supabaseBridge.syncAdminDataToLocal();
-          render();
-        }catch(e){ Modal?.info?.('تعذّر الحذف','خطأ'); }
-      }
+async remove(id){
+  const ok = await new Promise(resolve=>{
+    showModal({ title:'تأكيد الحذف', bodyHTML:'هل تريد حذف هذا الحجز؟',
+      actions:[{label:'إلغاء', className:'btn btn-ghost', onClick:()=>{hideModal();resolve(false)}},
+               {label:'حذف', className:'btn btn-danger', onClick:()=>{hideModal();resolve(true)}}]
+    });
+  });
+  if(!ok) return;
+  try{
+    await window.supabaseBridge.deleteReservationSB(id);
+    await window.supabaseBridge.syncAdminDataToLocal();
+    render();
+  }catch(e){ Modal?.info?.('تعذّر الحذف','خطأ'); }
+}
+
     };
 
     // تبويبات + بحث
@@ -796,20 +811,21 @@
     });
 
     // إضافة وتصدير
-    document.getElementById('addBtn').addEventListener('click', ()=>{
-      openForm('إضافة حجز جديد', { status:'new', people:2, duration:getDefaultDuration() }, async (data)=>{
-        try{
-          const iso = data.iso || (data.date ? new Date(data.date).toISOString() : new Date().toISOString());
-          await window.supabaseBridge.createReservationSB({
-            name:data.name, phone:data.phone, iso, people:data.people,
-            kind:'table', table:data.table||'', notes:data.notes, duration_minutes:data.duration||getDefaultDuration()
-          });
-          await window.supabaseBridge.syncAdminDataToLocal();
-          R.page=1; render();
-        }catch(e){ Modal?.info?.('تعذّر الإضافة','خطأ'); }
+ document.getElementById('addBtn').addEventListener('click', ()=>{
+  openForm('إضافة حجز جديد', { status:'new', people:2, duration:getDefaultDuration() }, async (data)=>{
+    try{
+const iso = data.iso || (data.date ? new Date(data.date).toISOString() : new Date().toISOString());
+      await window.supabaseBridge.createReservationSB({
+        name:data.name, phone:data.phone, iso, people:data.people,
+        kind:'table', table:data.table||'', notes:data.notes, duration_minutes:data.duration||getDefaultDuration()
       });
-    });
+      await window.supabaseBridge.syncAdminDataToLocal();
+      R.page=1; render();
+    }catch(e){ Modal?.info?.('تعذّر الإضافة','خطأ'); }
+  });
+});
 
+    });
     document.getElementById('exportBtn').addEventListener('click', ()=>{
       const rows=[['id','name','phone','date','people','table','status','notes','duration'].join(',')];
       listAll().forEach(r=>{
@@ -821,28 +837,30 @@
       const a=document.createElement('a'); a.href=url; a.download='reservations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),500);
     });
 
-    // تحديث من تبويب آخر + إشارة المزامنة
+    // تحديث من تبويب آخر
     window.addEventListener('storage', (e)=>{ if(e.key==='reservations') render(); });
-    document.addEventListener('sb:admin-synced', ()=> render());
+document.addEventListener('sb:admin-synced', ()=> render());
+if (document.readyState !== 'loading') render();
+else document.addEventListener('DOMContentLoaded', render);
 
     // تشغيل أولي
-    if (document.readyState !== 'loading') render();
-    else document.addEventListener('DOMContentLoaded', render());
-  })();
+    render();
   </script>
 
   <!-- Fallback Sync: مزامنة احتياطية لضمان تعبئة الحجوزات ثم إعادة الرسم -->
   <script>
-    (async () => {
+        (async () => {
       try {
         const LS = window.LS || { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } } };
         const hasData = (LS.get('reservations', []) || []).length > 0;
         if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
           await window.supabaseBridge.syncAdminDataToLocal();
           document.dispatchEvent(new Event('sb:admin-synced')); // يكفي الحدث لإعادة الرسم بأمان
+          try { document.dispatchEvent(new Event('sb:admin-synced')); } catch(_){}
         }
       } catch(e){}
     })();
+
   </script>
 
   <!-- مودال عام + إغلاق بالنقر خارج/زر Esc -->
