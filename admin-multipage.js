@@ -48,6 +48,11 @@ const ns = JSON.parse(localStorage.getItem('notifications')||'[]');
   document.addEventListener('DOMContentLoaded', ()=>{
     try{ renderFiltered(); }catch(e){}
   });
+  // Re-render notifications after Supabase sync
+document.addEventListener('sb:admin-synced', () => {
+  try{ renderFiltered(); }catch(e){}
+});
+
 })();
 // ===== Global Modal Helper (admin + pages that load this file) =====
 (function(){
