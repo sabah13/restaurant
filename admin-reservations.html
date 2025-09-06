@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <!-- Supabase: ضع مفاتيح مشروعك -->
 <script>
   window.SUPABASE_URL  = "https://vlbcsujhgwbqsqcrtpny.supabase.co";   /* بدّلها */
-  window.SUPABASE_ANON = "sb_publishable_iGmcWiB4iIvnQRYTfJ0n5A_bpR6jTmI";               /* بدّلها */
+  window.SUPABASE_ANON = "sb_publishable_iGmcWiB4iIvnQRYTfJ0n5A_bpR6jTmI";              
 </script>
 
 <!-- عميل Supabase -->
@@ -21,13 +20,6 @@
   import { syncPublicCatalogToLocal } from './supabase-bridge.js';
   await syncPublicCatalogToLocal();
 </script>
-
-<!-- الأهم: حارس الأدمن + مزامنة بيانات الأدمن (تجلب الحجوزات من DB إلى localStorage) -->
-<script type="module">
-  import { requireAdminOrRedirect, syncAdminDataToLocal } from "./supabase-bridge.js";
-  await requireAdminOrRedirect('login.html');   // إن لم تكن أدمن سيعيدك لتسجيل الدخول
-  await syncAdminDataToLocal();
-document.dispatchEvent(new Event('sb:admin-synced')); // 🔔 أبلغ الصفحة أن البيانات وصلت</script>
 
 
   <meta charset="utf-8" />
