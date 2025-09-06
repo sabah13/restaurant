@@ -294,6 +294,9 @@
     try { await window.supabaseBridge?.syncAdminDataToLocal(); } catch(e){}
     try { updateAll?.(); } catch(e){}
     try { window.dispatchEvent(new Event('storage')); } catch(e){}
+  /* ... لديك الأسطر 294-296 ... */
+  try { renderNotifs?.(); } catch(e){}
+
   });
 </script>
 
