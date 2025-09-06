@@ -847,20 +847,22 @@ else document.addEventListener('DOMContentLoaded', render);
     render();
   </script>
 
-  <!-- Fallback Sync: مزامنة احتياطية لضمان تعبئة الحجوزات ثم إعادة الرسم -->
-  <script>
-        (async () => {
-      try {
-        const LS = window.LS || { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } } };
-        const hasData = (LS.get('reservations', []) || []).length > 0;
-        if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
-          await window.supabaseBridge.syncAdminDataToLocal();
-          document.dispatchEvent(new Event('sb:admin-synced'));
-        }
-      } catch(e){}
-    })();
+<!-- Fallback Sync: مزامنة احتياطية لضمان تعبئة الحجوزات ثم إعادة الرسم -->
+<script>
+  (async () => {
+    try {
+      const LS = window.LS || { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } } };
+      const hasData = (LS.get('reservations', []) || []).length > 0;
+      if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
+        await window.supabaseBridge.syncAdminDataToLocal();
+        document.dispatchEvent(new Event('sb:admin-synced')); // يكفي الحدث لإعادة الرسم بأمان
+        /* يمكن حذف السطر المكرر التالي نهائياً */
+        /* try { document.dispatchEvent(new Event('sb:admin-synced')); } catch(_){} */
+      }
+    } catch(e){}
+  })();
+</script>
 
-  </script>
 
   <!-- مودال عام + إغلاق بالنقر خارج/زر Esc -->
   <div id="appModalOverlay" class="app-modal-overlay">
