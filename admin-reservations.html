@@ -351,9 +351,8 @@
     /* توحيد */
     function norm(r){
       if(!r.status) r.status='new';
-      // بعد السطر 353
-if (r.status === 'cancelled') r.status = 'canceled';
-
+      /* تطبيع تهجئة الحالة البريطانية إلى الأمريكية */
+      if (r.status === 'cancelled') r.status = 'canceled';
       if(typeof r.people==='string') r.people = Number(toLatn(r.people))||1;
       if(r.iso){ r.date=r.iso; }
       else if(r.date && r.time){
@@ -446,15 +445,15 @@ if (r.status === 'cancelled') r.status = 'canceled';
     function render(){
       updateKPIs();
 
-// القادم أولاً ثم الماضي، وداخل كل مجموعة ترتيب زمني تصاعدي
-const now = Date.now();
-const allRecords = listAll().sort((a,b)=>{
-  const ta = new Date(a.date).getTime() - now;
-  const tb = new Date(b.date).getTime() - now;
-  const aFuture = ta >= 0, bFuture = tb >= 0;
-  if (aFuture !== bFuture) return aFuture ? -1 : 1; // الحجوزات القادمة أولاً
-  return new Date(a.date) - new Date(b.date);       // ثم ترتيب زمني داخل المجموعة
-});
+      // القادم أولاً ثم الماضي، وداخل كل مجموعة ترتيب زمني تصاعدي
+      const now = Date.now();
+      const allRecords = listAll().sort((a,b)=>{
+        const ta = new Date(a.date).getTime() - now;
+        const tb = new Date(b.date).getTime() - now;
+        const aFuture = ta >= 0, bFuture = tb >= 0;
+        if (aFuture !== bFuture) return aFuture ? -1 : 1; // الحجوزات القادمة أولاً
+        return new Date(a.date) - new Date(b.date);       // ثم ترتيب زمني داخل المجموعة
+      });
       const fullConflictMap = computeConflictMap(allRecords);
 
       const baseFiltered = allRecords
@@ -832,20 +831,24 @@ const iso = data.iso || (data.date ? new Date(data.date).toISOString() : new Dat
 document.addEventListener('sb:admin-synced', ()=> render());
 if (document.readyState !== 'loading') render();
 else document.addEventListener('DOMContentLoaded', render);
-  (async () => {
-    try {
-      const LS = window.LS || {
-        get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } }
-      };
-      const hasData = (LS.get('reservations', []) || []).length > 0;
-      if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
-        await window.supabaseBridge.syncAdminDataToLocal();
-        if (typeof render === 'function') render();
-      }
-    } catch(e){}
-  })();
+
     // تشغيل أولي
     render();
+  </script>
+
+  <!-- Fallback Sync: مزامنة احتياطية لضمان تعبئة الحجوزات ثم إعادة الرسم -->
+  <script>
+    (async () => {
+      try {
+        const LS = window.LS || { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d } catch{ return d } } };
+        const hasData = (LS.get('reservations', []) || []).length > 0;
+        if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
+          await window.supabaseBridge.syncAdminDataToLocal();
+          if (typeof render === 'function') render();
+          try { document.dispatchEvent(new Event('sb:admin-synced')); } catch(_){}
+        }
+      } catch(e){}
+    })();
   </script>
 
   <!-- مودال عام + إغلاق بالنقر خارج/زر Esc -->
