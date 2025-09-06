@@ -93,6 +93,8 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   if (insOnly.error) throw insOnly.error;
 
   // نبني سجل محلي لواجهة المستخدم (بدون الاعتماد على إرجاع السيرفر)
+
+  // نبني سجل محلي لواجهة المستخدم (بدون الاعتماد على إرجاع السيرفر)
   const r = {
     id: (crypto?.randomUUID?.() || `tmp-${Date.now()}`), // معرف محلي للاستخدام في الواجهة فقط
     name,
@@ -124,7 +126,6 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   LS.set('reservations', list);
   return true;
 }
-
 export async function updateReservationSB(id, fields){
   const sb = window.supabase;
   const up = await sb.from('reservations').update(fields).eq('id', id).select().single();
@@ -273,7 +274,7 @@ export async function syncAdminDataToLocal(){
   if (items.error) throw items.error;
 
   // Orders joined with items
-  const orders = await sb.from('orders').select('id,order_name,phone,table_no,notes,total,created_at').order('created_at', {ascending:false});
+  const orders = await sb.from('orders').select('id,order_n...notes,total,created_at').order('created_at', {ascending:false});
   if (orders.error) throw orders.error;
 
   const orderIds = (orders.data||[]).map(o=>o.id);
@@ -284,20 +285,7 @@ export async function syncAdminDataToLocal(){
     orderItems = oi.data || [];
   }
 
-  // join items
-  const adminOrders = (orders.data||[]).map(o=>{
-    const its = orderItems.filter(oi => oi.order_id === o.id).map(oi => ({
-      id: oi.item_id, name: oi.name, price: Number(oi.price)||0, qty: Number(oi.qty||1)
-    }));
-    const cnt = its.reduce((s,it)=> s + (Number(it.qty)||1), 0);
-    return {
-      id: o.id, items: its, itemCount: cnt,
-      total: Number(o.total)||0,
-      createdAt: o.created_at,
-      table: o.table_no, orderName: o.order_name, notes: o.notes
-    };
-  });
-
+  // ratings
   const ratings = await sb.from('ratings').select('*').order('created_at', {ascending:false});
   if (ratings.error) throw ratings.error;
 
@@ -309,14 +297,23 @@ export async function syncAdminDataToLocal(){
   LS.set('menuItems', (items.data||[]).map(it => ({
     id: it.id, name: it.name, desc: it["desc"], price: Number(it.price)||0,
     img: it.img, catId: it.cat_id, fresh: !!it.fresh,
-    rating: { avg: Number(it.rating_avg||0), count: Number(it.rating_count||0) },
+    rating: { avg: Number(it.rating_avg)||0, count: Number(it.rating_count)||0 },
     available: !!it.available
   })));
-  LS.set('orders', adminOrders);
 
-  LS.set('ratings', (ratings.data||[]).map(r => ({
-    id: r.id, itemId: r.item_id, stars: r.stars, time: r.created_at
-  })));
+  // join orders
+  const adminOrders = (orders.data||[]).map(o=>{
+    const its = orderItems.filter(oi => oi.order_id === o.id).map(oi => ({
+      id: oi.item_id, name: oi.name, price: Number(oi.price)||0, qty: Number(oi.qty||1)
+    }));
+    const cnt = its.reduce((s,it)=> s + (Number(it.qty)||1), 0);
+    return {
+      id: o.id, total: Number(o.total)||0, itemCount: cnt,
+      createdAt: o.created_at, table: o.table_no||'', orderName: o.order_name||'', notes: o.notes||'',
+      items: its
+    };
+  });
+  LS.set('orders', adminOrders);
 
   LS.set('reservations', (reservations.data||[]).map(r => ({
     id: r.id,
@@ -332,6 +329,8 @@ export async function syncAdminDataToLocal(){
   })));
 
   // notifications: only orders for the admin drawer
+
+  // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
     id: `ord-${o.id}`,
     type: 'order',
@@ -344,7 +343,7 @@ export async function syncAdminDataToLocal(){
   const merged = [...existing, ...notifOrders].sort((a,b)=> new Date(b.time) - new Date(a.time));
   LS.set('notifications', merged);
 
-  try {
+   try {
     document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
   } catch {}
 
