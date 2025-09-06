@@ -26,8 +26,8 @@
 <script type="module">
   import { requireAdminOrRedirect, syncAdminDataToLocal } from "./supabase-bridge.js";
   await requireAdminOrRedirect('login.html');   // إن لم تكن أدمن سيعيدك لتسجيل الدخول
-  await syncAdminDataToLocal();  
- document.dispatchEvent(new Event('sb:admin-synced')); // 🔔 أبلغ الصفحة أن البيانات وصلت</script>
+  await syncAdminDataToLocal();
+document.dispatchEvent(new Event('sb:admin-synced')); // 🔔 أبلغ الصفحة أن البيانات وصلت</script>
 
 
   <meta charset="utf-8" />
@@ -855,8 +855,7 @@ else document.addEventListener('DOMContentLoaded', render);
         const hasData = (LS.get('reservations', []) || []).length > 0;
         if (!hasData && window.supabaseBridge?.syncAdminDataToLocal) {
           await window.supabaseBridge.syncAdminDataToLocal();
-          document.dispatchEvent(new Event('sb:admin-synced')); // يكفي الحدث لإعادة الرسم بأمان
-          try { document.dispatchEvent(new Event('sb:admin-synced')); } catch(_){}
+          document.dispatchEvent(new Event('sb:admin-synced'));
         }
       } catch(e){}
     })();
