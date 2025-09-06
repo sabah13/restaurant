@@ -28,14 +28,15 @@
   const renderFiltered = function(){
     const box = document.querySelector('#notifList');
     if(!box) return;
-    const ns = JSON.parse(localStorage.getItem('notifications')||'[]').filter(n=>n.type==='order');
+const ns = JSON.parse(localStorage.getItem('notifications')||'[]');
     if(ns.length===0){ box.innerHTML='<div class="small" style="color:var(--muted)">لا يوجد إشعارات</div>'; return; }
     box.innerHTML = ns.map(n=>`
       <div class="card" style="padding:12px;border:1px solid #eee">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong>${n.title}</strong>
-          <span class="badge badge-danger small">طلب</span>
-        </div>
+<span class="badge ${n.type==='order'?'badge-danger':'badge-olive'} small">
+  ${n.type==='order'?'طلب':(n.type==='reservation'?'حجز':'إشعار')}
+</span>        </div>
         <div class="small" style="margin-top:6px">${n.message||''}</div>
         <div class="small" style="margin-top:6px;color:var(--muted)">${new Date(n.time).toLocaleString('ar-EG')}</div>
       </div>
