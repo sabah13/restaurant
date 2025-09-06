@@ -642,7 +642,7 @@ openForm('تعديل الحجز', r, async (data)=>{
   try{
     await window.supabaseBridge.updateReservationSB(r.id, {
       name:data.name, phone:data.phone, date:data.date, people:data.people,
-      table:data.table, duration:data.duration, status:data.status, notes:data.notes
+table_no:data.table, duration_minutes:data.duration, status:data.status, notes:data.notes
     });
     await window.supabaseBridge.syncAdminDataToLocal();
     render();
@@ -678,7 +678,7 @@ openForm('تعديل الحجز', r, async (data)=>{
     if(!proceed) return;
   }
   try{
-    await window.supabaseBridge.updateReservationSB(r.id, { table:n });
+await window.supabaseBridge.updateReservationSB(r.id, { table_no:n });
     await window.supabaseBridge.syncAdminDataToLocal();
     hideModal(); render();
   }catch(e){ Modal?.info?.('تعذّر الحفظ','خطأ'); }
