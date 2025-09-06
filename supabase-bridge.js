@@ -148,6 +148,7 @@ export async function deleteReservationSB(id){
   LS.set('reservations', list);
   return true;
 }
+
 // ---------- Categories ----------
 export async function createCategorySB({ id, name, sort = 100 }){
   const sb = window.supabase;
@@ -159,6 +160,7 @@ export async function createCategorySB({ id, name, sort = 100 }){
   LS.set('categories', cats);
   return ins.data;
 }
+
 // ---------- Categories (update & delete) ----------
 export async function updateCategorySB(id, fields = {}){
   const sb = window.supabase;
@@ -191,6 +193,7 @@ export async function deleteCategorySB(id){
   LS.set('menuItems', items);
   return true;
 }
+
 // ---------- Menu Items (create / update / delete) ----------
 export async function createMenuItemSB({ name, desc='', price=0, img='', cat_id=null, available=true, fresh=false }){
   const sb = window.supabase;
@@ -315,19 +318,18 @@ export async function syncAdminDataToLocal(){
     id: r.id, itemId: r.item_id, stars: r.stars, time: r.created_at
   })));
 
- LS.set('reservations', (reservations.data||[]).map(r => ({
-  id: r.id,
-  name: r.name,
-  phone: r.phone,
-  date: r.date,
-  people: r.people,
-  kind: r.kind,
-  table: r.table_no || '',
-  duration: r.duration_minutes || 90,
-  notes: r.notes || '',
-  status: r.status || 'new'     // مهم للفلاتر والعدادات
-})));
-
+  LS.set('reservations', (reservations.data||[]).map(r => ({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    date: r.date,
+    people: r.people,
+    kind: r.kind,
+    table: r.table_no || '',
+    duration: r.duration_minutes || 90,
+    notes: r.notes || '',
+    status: r.status || 'new'     // مهم للفلاتر والعدادات
+  })));
 
   // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
@@ -338,12 +340,13 @@ export async function syncAdminDataToLocal(){
     time: o.createdAt,
     read: false
   }));
-const existing = LS.get('notifications', []).filter(n => n.type !== 'order');
-const merged = [...existing, ...notifOrders].sort((a,b)=> new Date(b.time) - new Date(a.time));
-LS.set('notifications', merged);  try {
-  document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
-} catch {}
+  const existing = LS.get('notifications', []).filter(n => n.type !== 'order');
+  const merged = [...existing, ...notifOrders].sort((a,b)=> new Date(b.time) - new Date(a.time));
+  LS.set('notifications', merged);
 
+  try {
+    document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
+  } catch {}
 
   return true;
 }
@@ -362,20 +365,33 @@ export async function requireAdminOrRedirect(loginPath='login.html'){
   return session;
 }
 
-// Expose to window for non-module scripts
+// ---------- Auto bootstrap on admin pages (safe & optional) ----------
+// يشغّل التحقق + المزامنة تلقائيًا على أي صفحة اسمها يحوي "admin"
+(() => {
+  try {
+    const path = (location.pathname || '').toLowerCase();
+    const isAdminPage = path.includes('admin');
+    if (!isAdminPage) return;
+    document.addEventListener('DOMContentLoaded', async () => {
+      try { await requireAdminOrRedirect('login.html'); } catch(e){}
+      try { await syncAdminDataToLocal(); } catch(e){}
+    });
+  } catch {}
+})();
+
 // Expose to window for non-module scripts
 window.supabaseBridge = {
   syncPublicCatalogToLocal,
   createOrderSB,
   createCategorySB,
-   updateCategorySB,
-    deleteCategorySB,
+  updateCategorySB,
+  deleteCategorySB,
   createMenuItemSB,
-   updateMenuItemSB,
-    deleteMenuItemSB,   // <— أُضيفت هنا
+  updateMenuItemSB,
+  deleteMenuItemSB,   // <— أُضيفت هنا
   createReservationSB,
-   updateReservationSB,
-    deleteReservationSB,
+  updateReservationSB,
+  deleteReservationSB,
   createRatingSB,
   syncAdminDataToLocal,
   requireAdminOrRedirect
