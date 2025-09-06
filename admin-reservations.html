@@ -864,15 +864,44 @@ else document.addEventListener('DOMContentLoaded', render);
       <div class="actions" id="modalActions"></div>
     </div>
   </div>
-  <script>
-    (function(){
-      var ov=document.getElementById('appModalOverlay'); if(!ov) return;
-      var btn=document.getElementById('modalCloseBtn');
-      function safeHide(){ try{ hideModal(); }catch(_){ ov.style.display='none'; } }
-      if(btn) btn.addEventListener('click', (e)=>{ e.preventDefault(); safeHide(); });
-      ov.addEventListener('click', (e)=>{ if(e.target===ov){ safeHide(); } });
-      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ safeHide(); } });
-    })();
-  </script>
+ <script>
+(function(){
+  const ov = document.getElementById('appModalOverlay');
+  const titleEl = document.getElementById('modalTitle');
+  const bodyEl = document.getElementById('modalBody');
+  const actionsEl = document.getElementById('modalActions');
+
+  window.showModal = ({title='', bodyHTML='', actions=[]}={}) => {
+    if (!ov) return;
+    titleEl.textContent = title || 'نموذج';
+    bodyEl.innerHTML = bodyHTML || '';
+    actionsEl.innerHTML = '';
+    (actions || []).forEach(a => {
+      const b = document.createElement('button');
+      b.className = a.className || 'btn';
+      b.textContent = a.label || 'موافق';
+      b.addEventListener('click', () => { try{ a.onClick?.(); }catch{} });
+      actionsEl.appendChild(b);
+    });
+    ov.style.display = 'grid';
+  };
+
+  window.hideModal = () => { if (ov) ov.style.display = 'none'; };
+  window.Modal = {
+    info: (body, title='تنبيه') => showModal({
+      title, bodyHTML: String(body ?? ''),
+      actions: [{ label:'موافق', className:'btn btn-primary', onClick: hideModal }]
+    })
+  };
+
+  // إغلاق بالنقر خارج/زر Esc/زر إغلاق
+  const closeBtn = document.getElementById('modalCloseBtn');
+  const safeHide = () => { try{ hideModal(); }catch{} };
+  closeBtn?.addEventListener('click', (e)=>{ e.preventDefault(); safeHide(); });
+  ov?.addEventListener('click', (e)=>{ if (e.target === ov) safeHide(); });
+  document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') safeHide(); });
+})();
+</script>
+
 </body>
 </html>
