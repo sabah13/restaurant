@@ -819,6 +819,8 @@ const iso = data.iso || (data.date ? new Date(data.date).toISOString() : new Dat
     // تحديث من تبويب آخر
     window.addEventListener('storage', (e)=>{ if(e.key==='reservations') render(); });
 document.addEventListener('sb:admin-synced', ()=> render());
+if (document.readyState !== 'loading') render();
+else document.addEventListener('DOMContentLoaded', render);
 
     // تشغيل أولي
     render();
