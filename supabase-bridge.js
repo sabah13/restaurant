@@ -274,7 +274,7 @@ export async function syncAdminDataToLocal(){
   if (items.error) throw items.error;
 
   // Orders joined with items
-  const orders = await sb.from('orders').select('id,order_n...notes,total,created_at').order('created_at', {ascending:false});
+  const orders = await sb.from('orders').select('id,order_name,phone,table_no,notes,total,created_at').order('created_at', {ascending:false});
   if (orders.error) throw orders.error;
 
   const orderIds = (orders.data||[]).map(o=>o.id);
