@@ -338,8 +338,9 @@ export async function syncAdminDataToLocal(){
     time: o.createdAt,
     read: false
   }));
-LS.set('notifications', notifOrders);
-  try {
+const existing = LS.get('notifications', []).filter(n => n.type !== 'order');
+const merged = [...existing, ...notifOrders].sort((a,b)=> new Date(b.time) - new Date(a.time));
+LS.set('notifications', merged);  try {
   document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
 } catch {}
 
