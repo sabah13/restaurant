@@ -127,39 +127,60 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   return true;
 }
 export async function updateReservationSB(id, fields){
+  const f = fields || {};
+  const patch = {};
+  if ('name' in f) patch.name = f.name;
+  if ('phone' in f) patch.phone = f.phone;
+  if ('date' in f) patch.date = f.date;
+  if ('people' in f) patch.people = f.people;
+  if ('status' in f) patch.status = f.status;
+  if ('notes' in f) patch.notes = f.notes;
+  if ('table_no' in f) patch.table = f.table_no;
+  if ('duration_minutes' in f) patch.duration = f.duration_minutes;
+
+  const isTmp = String(id).startsWith('tmp-') || Number.isNaN(Number(id));
+  if (isTmp) {
+    // تعديل محلي فقط للحجوزات ذات المعرّف المؤقّت
+    const list = LS.get('reservations', []);
+    const i = list.findIndex(r => String(r.id) === String(id));
+    if (i >= 0) {
+      list[i] = { ...list[i], ...patch, updatedAt: new Date().toISOString() };
+      LS.set('reservations', list);
+    }
+    return true;
+  }
+
   const sb = window.supabase;
   const up = await sb.from('reservations').update(fields).eq('id', id).select().single();
   if (up.error) throw up.error;
 
-   const list = LS.get('reservations', []);
+  const list = LS.get('reservations', []);
   const i = list.findIndex(r => String(r.id) === String(id));
   if (i >= 0) {
-    const f = fields || {};
-    const patch = {};
-    if ('name' in f) patch.name = f.name;
-    if ('phone' in f) patch.phone = f.phone;
-    if ('date' in f) patch.date = f.date;
-    if ('people' in f) patch.people = f.people;
-    if ('status' in f) patch.status = f.status;
-    if ('notes' in f) patch.notes = f.notes;
-    if ('table_no' in f) patch.table = f.table_no;                // map
-    if ('duration_minutes' in f) patch.duration = f.duration_minutes; // map
     list[i] = { ...list[i], ...patch, updatedAt: new Date().toISOString() };
     LS.set('reservations', list);
   }
-
-
   return up.data;
 }
 
 export async function deleteReservationSB(id){
+  const isTmp = String(id).startsWith('tmp-') || Number.isNaN(Number(id));
+  if (isTmp){
+    // حذف محلي فقط للحجوزات ذات المعرّف المؤقّت
+    const list = (LS.get('reservations', []) || []).filter(r => String(r.id) !== String(id));
+    LS.set('reservations', list);
+    return true;
+  }
+
   const sb = window.supabase;
   const del = await sb.from('reservations').delete().eq('id', id);
   if (del.error) throw del.error;
-  const list = (LS.get('reservations', []) || []).filter(r => r.id !== id);
+
+  const list = (LS.get('reservations', []) || []).filter(r => String(r.id) !== String(id));
   LS.set('reservations', list);
   return true;
 }
+
 
 // ---------- Categories ----------
 export async function createCategorySB({ id, name, sort = 100 }){
