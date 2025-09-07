@@ -93,8 +93,6 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   if (insOnly.error) throw insOnly.error;
 
   // نبني سجل محلي لواجهة المستخدم (بدون الاعتماد على إرجاع السيرفر)
-
-  // نبني سجل محلي لواجهة المستخدم (بدون الاعتماد على إرجاع السيرفر)
   const r = {
     id: (crypto?.randomUUID?.() || `tmp-${Date.now()}`), // معرف محلي للاستخدام في الواجهة فقط
     name,
@@ -126,6 +124,7 @@ export async function createReservationSB({name, phone, iso, people, kind='table
   LS.set('reservations', list);
   return true;
 }
+
 export async function updateReservationSB(id, fields){
   const f = fields || {};
   const patch = {};
@@ -151,7 +150,8 @@ export async function updateReservationSB(id, fields){
   }
 
   const sb = window.supabase;
-  const up = await sb.from('reservations').update(fields).eq('id', id).select().single();
+  // (مهم) مطابقة نوع id مع bigint في القاعدة
+  const up = await sb.from('reservations').update(fields).eq('id', Number(id)).select().single();
   if (up.error) throw up.error;
 
   const list = LS.get('reservations', []);
@@ -173,14 +173,14 @@ export async function deleteReservationSB(id){
   }
 
   const sb = window.supabase;
-  const del = await sb.from('reservations').delete().eq('id', id);
+  // (مهم) مطابقة نوع id مع bigint في القاعدة
+  const del = await sb.from('reservations').delete().eq('id', Number(id));
   if (del.error) throw del.error;
 
   const list = (LS.get('reservations', []) || []).filter(r => String(r.id) !== String(id));
   LS.set('reservations', list);
   return true;
 }
-
 
 // ---------- Categories ----------
 export async function createCategorySB({ id, name, sort = 100 }){
@@ -348,7 +348,7 @@ export async function syncAdminDataToLocal(){
   LS.set('orders', adminOrders);
 
   LS.set('reservations', (reservations.data||[]).map(r => ({
-    id: r.id,
+    id: Number(r.id), // توحيد النوع محليًا
     name: r.name,
     phone: r.phone,
     date: r.date,
@@ -359,8 +359,6 @@ export async function syncAdminDataToLocal(){
     notes: r.notes || '',
     status: r.status || 'new'     // مهم للفلاتر والعدادات
   })));
-
-  // notifications: only orders for the admin drawer
 
   // notifications: only orders for the admin drawer
   const notifOrders = adminOrders.map(o => ({
@@ -375,12 +373,13 @@ export async function syncAdminDataToLocal(){
   const merged = [...existing, ...notifOrders].sort((a,b)=> new Date(b.time) - new Date(a.time));
   LS.set('notifications', merged);
 
-   try {
+  try {
     document.dispatchEvent(new CustomEvent('sb:admin-synced', { detail: { at: Date.now() } }));
   } catch {}
 
   return true;
 }
+
 export async function requireAdminOrRedirect(loginPath='login.html'){
   const sb = window.supabase;
   const { data: { session } } = await sb.auth.getSession();
