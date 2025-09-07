@@ -304,7 +304,6 @@
       const B = window.supabaseBridge;
       if (!B) { console.error('supabase-bridge لم يُحمّل'); /* لا نوقف الصفحة */ }
 
-      try { await B?.requireAdminOrRedirect?.('login.html'); } catch(e){ console.error(e); }
       try { await B?.syncAdminDataToLocal?.(); } catch(e){ console.error(e); }
       try { updateAll?.(); } catch(e){ console.error(e); }
       try { window.dispatchEvent(new Event('storage')); } catch(e){}
@@ -923,3 +922,4 @@
   </script>
 </body>
 </html>
+
