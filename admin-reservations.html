@@ -521,7 +521,7 @@
               return `#${String(c.id).slice(0,6)} — طاولة ${over.join(', ')} — ${s.d} ${s.t}`;
             }).join('\n') : '';
             const trTitle = confTitle ? ` title="${confTitle.replace(/"/g,'&quot;')}"` : '';
-            const safeId = JSON.stringify(r.id);
+const safeId = JSON.stringify(r.id);
             return `<tr${trCls}${trTitle}>
               <td class="mono">${fmtNum(rowNum)}</td>
               <td class="col-name">${r.name||'-'}</td>
