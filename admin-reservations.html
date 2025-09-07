@@ -281,13 +281,23 @@
   <script src="admin.js"></script>
   <script src="admin-multipage.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', async () => {
-  try { await window.supabaseBridge?.requireAdminOrRedirect('login.html'); } catch(e){}
-try { await window.supabaseBridge?.syncAdminDataToLocal(); } catch(e){}
-try { updateAll?.(); } catch(e){}
-try { window.dispatchEvent(new Event('storage')); } catch(e){}
+  (async function boot(){
+    // انتظر DOM إن لزم
+    if (document.readyState === 'loading') {
+      await new Promise(r => document.addEventListener('DOMContentLoaded', r, {once:true}));
+    }
+    // انتظر تحميل ملف الجسر حتى 5 ثوانٍ
+    for (let i=0; i<50 && !window.supabaseBridge; i++) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    const B = window.supabaseBridge;
+    if (!B) { console.error('supabase-bridge لم يُحمّل'); return; }
 
-  });
+    try { await B.requireAdminOrRedirect('login.html'); } catch(e){ console.error(e); }
+    try { await B.syncAdminDataToLocal(); } catch(e){ console.error(e); }
+    try { updateAll?.(); } catch(e){ console.error(e); }
+    try { window.dispatchEvent(new Event('storage')); } catch(e){}
+  })();
 </script>
 
   <script>
@@ -903,3 +913,4 @@ else document.addEventListener('DOMContentLoaded', render);
 
 </body>
 </html>
+
