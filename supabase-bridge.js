@@ -151,7 +151,7 @@ export async function updateReservationSB(id, fields){
 
   const sb = window.supabase;
   // (مهم) مطابقة نوع id مع bigint في القاعدة
-const up = await sb.from('reservations').update(fields).eq('id', String(id)).select().single();
+  const up = await sb.from('reservations').update(fields).eq('id', Number(id)).select().single();
   if (up.error) throw up.error;
 
   const list = LS.get('reservations', []);
@@ -174,7 +174,7 @@ export async function deleteReservationSB(id){
 
   const sb = window.supabase;
   // (مهم) مطابقة نوع id مع bigint في القاعدة
-const del = await sb.from('reservations').delete().eq('id', String(id));
+  const del = await sb.from('reservations').delete().eq('id', Number(id));
   if (del.error) throw del.error;
 
   const list = (LS.get('reservations', []) || []).filter(r => String(r.id) !== String(id));
@@ -348,7 +348,7 @@ export async function syncAdminDataToLocal(){
   LS.set('orders', adminOrders);
 
   LS.set('reservations', (reservations.data||[]).map(r => ({
-id: String(r.id), // تجنّب فقدان الدقّة في BIGINT
+    id: Number(r.id), // توحيد النوع محليًا
     name: r.name,
     phone: r.phone,
     date: r.date,
