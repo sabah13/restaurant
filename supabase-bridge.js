@@ -366,14 +366,9 @@ export async function requireAdminOrRedirect(loginPath='login.html'){
   const sb = window.supabase;
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { location.replace(loginPath); return null; }
-
-  const uid = session.user?.id;
-  if (!uid) { location.replace(loginPath); return null; }
-
-  const { data: isAdmin, error } = await sb.rpc('is_admin', { u: uid });
-  if (error || !isAdmin) { location.replace(loginPath); return null; }
-  return session;
+  return session; // أي مستخدم مسجّل دخولًا مسموح
 }
+
 // ---------- Auto bootstrap on admin pages (safe & optional) ----------
 // يشغّل التحقق + المزامنة تلقائيًا على أي صفحة اسمها يحوي "admin"
 (() => {
