@@ -521,7 +521,7 @@
               return `#${String(c.id).slice(0,6)} — طاولة ${over.join(', ')} — ${s.d} ${s.t}`;
             }).join('\n') : '';
             const trTitle = confTitle ? ` title="${confTitle.replace(/"/g,'&quot;')}"` : '';
-            const safeId = JSON.stringify(r.id);
+const safeId = JSON.stringify(String(r.id));
             return `<tr${trCls}${trTitle}>
               <td class="mono">${fmtNum(rowNum)}</td>
               <td class="col-name">${r.name||'-'}</td>
@@ -851,8 +851,9 @@
           addBtn.classList.add('btn-ghost');
         }
         try{
-          const key = String(window.SUPABASE_ANON||'');
-          if(!key || key.startsWith('sb_publishable_')){
+        const key = String(window.SUPABASE_ANON||'');
+if(!key || key.startsWith('sb_publishable_') || key.includes('REPLACE_WITH_YOUR_REAL_ANON_JWT')) {
+
             show('مفتاح Supabase ANON غير صالح. ضع الـ JWT الحقيقي (يبدأ عادة بـ <span class="mono">eyJ...</span>) من Project Settings &rarr; API &rarr; anon public.');
             return;
           }
@@ -923,4 +924,3 @@
   </script>
 </body>
 </html>
-
