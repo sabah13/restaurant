@@ -137,6 +137,15 @@
       flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;
     }
 
+    /* --- إضافة: منع النقر المكرر + لودِر صغير لزر الحالة فقط --- */
+    [aria-busy="true"], .status-pill[disabled]{ opacity:.6; pointer-events:none; }
+    .spinner{
+      display:inline-block; width:1em; height:1em;
+      border:.15em solid currentColor; border-right-color:transparent;
+      border-radius:50%; margin-inline-end:6px; vertical-align:-2px;
+      animation:sp 0.6s linear infinite;
+    }
+    @keyframes sp{ to{ transform:rotate(360deg) } }
   </style>
 </head>
 <body>
@@ -529,7 +538,7 @@
               <td class="nowrap">${dt.t}</td>
               <td>${fmtNum(r.people||1)}</td>
               <td>${formatTables(r.table||'') || '—'}</td>
-              <td><button class="status-pill ${statusClass(r.status)}" title="تغيير الحالة" onclick='__res.quickStatus(${safeId})'>${statusLabel(r.status)}</button></td>
+              <td><button class="status-pill ${statusClass(r.status)}" title="تغيير الحالة" onclick='__res.quickStatus(this, ${safeId})'>${statusLabel(r.status)}</button></td>
               <td>${notes}</td>
               <td class="col-ops">
                 <div class="ops-inline">
@@ -580,20 +589,20 @@
       function openForm(title, r, onSubmit){
         const html = `
           <div class="app-grid">
-            <div><label class="app-label">الاسم</label><input class="app-input" id="f_name" value="${r?.name||''}"></div>
-            <div><label class="app-label">الهاتف</label><input class="app-input" id="f_phone" value="${toLatn(r?.phone||'')}"></div>
-            <div><label class="app-label">التاريخ والوقت</label><input class="app-input" id="f_date" type="datetime-local" value="${r?.date? toLocalInputValue(new Date(r.date)):''}"></div>
-            <div><label class="app-label">عدد الأشخاص</label><input class="app-input" id="f_people" type="number" min="1" value="${r?.people??2}"></div>
-            <div><label class="app-label">رقم الطاولة/الطاولات</label><input class="app-input" id="f_table" placeholder="مثال: 8,9 أو 3-5" value="${r?.table?formatTables(r.table):''}"></div>
-            <div><label class="app-label">المدة (دقائق)</label><input class="app-input" id="f_duration" type="number" min="15" step="5" value="${r?.duration ?? getDefaultDuration()}"></div>
+            <div><label class="app-label">الاسم</label><input class="app-input" id="f_name" value="\${r?.name||''}"></div>
+            <div><label class="app-label">الهاتف</label><input class="app-input" id="f_phone" value="\${toLatn(r?.phone||'')}"></div>
+            <div><label class="app-label">التاريخ والوقت</label><input class="app-input" id="f_date" type="datetime-local" value="\${r?.date? toLocalInputValue(new Date(r.date)):''}"></div>
+            <div><label class="app-label">عدد الأشخاص</label><input class="app-input" id="f_people" type="number" min="1" value="\${r?.people??2}"></div>
+            <div><label class="app-label">رقم الطاولة/الطاولات</label><input class="app-input" id="f_table" placeholder="مثال: 8,9 أو 3-5" value="\${r?.table?formatTables(r.table):''}"></div>
+            <div><label class="app-label">المدة (دقائق)</label><input class="app-input" id="f_duration" type="number" min="15" step="5" value="\${r?.duration ?? getDefaultDuration()}"></div>
             <div><label class="app-label">الحالة</label>
               <select class="app-input" id="f_status">
-                ${['new','confirmed','seated','done','canceled'].map(s=>`<option value="${s}" ${r?.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
+                \${['new','confirmed','seated','done','canceled'].map(s=>`<option value="\${s}" \${r?.status===s?'selected':''}>\${statusLabel(s)}</option>`).join('')}
               </select>
             </div>
           </div>
           <div class="app-grid-1" style="margin-top:10px">
-            <div><label class="app-label">ملاحظات</label><textarea class="app-input" id="f_notes" rows="3">${r?.notes??''}</textarea></div>
+            <div><label class="app-label">ملاحظات</label><textarea class="app-input" id="f_notes" rows="3">\${r?.notes??''}</textarea></div>
           </div>
         `;
         showModal({
@@ -625,7 +634,7 @@
                   let proceed = await new Promise(resolve=>{
                     showModal({
                       title:'تعارضات مكتشفة',
-                      bodyHTML:`<pre style="white-space:pre-wrap;font-family:inherit">${msg}</pre><div class="small muted">هل تريد المتابعة والحفظ رغم التعارض؟</div>`,
+                      bodyHTML:`<pre style="white-space:pre-wrap;font-family:inherit">\${msg}</pre><div class="small muted">هل تريد المتابعة والحفظ رغم التعارض؟</div>`,
                       actions:[
                         {label:'تراجع', className:'btn btn-ghost', onClick: ()=>{ hideModal(); resolve(false); }},
                         {label:'متابعة', className:'btn btn-primary', onClick: ()=>{ hideModal(); resolve(true); }},
@@ -642,13 +651,51 @@
         });
       }
 
+      /* ===== إضافة: أدوات قفل الزر للحالة فقط ===== */
+      function lockBtn(btn, loadingText='جارٍ…'){
+        if(!btn) return ()=>{};
+        if(btn.dataset.busy === '1') return ()=>{};
+        const old = { html: btn.innerHTML, dis: btn.disabled, w: btn.offsetWidth };
+        btn.dataset.busy = '1';
+        btn.disabled = true;
+        btn.setAttribute('aria-busy','true');
+        btn.style.minWidth = old.w + 'px';
+        btn.innerHTML = `<span class="spinner"></span>${loadingText}`;
+        return ()=>{ 
+          btn.disabled = old.dis;
+          btn.removeAttribute('aria-busy');
+          btn.style.minWidth = '';
+          btn.innerHTML = old.html;
+          delete btn.dataset.busy;
+        };
+      }
+      async function runWithLock(btn, loadingText, fn){
+        if(btn && btn.dataset.busy === '1') return;   // تجاهل النقرات المتكررة
+        const release = lockBtn(btn, loadingText);
+        try{ await fn(); } finally{ release(); }
+      }
+
       // واجهة عامة
       window.__res = {
-        quickStatus(id){
-          const list = listAll(); const r = list.find(x=>x.id===id); if(!r) return;
-          const flow=['new','confirmed','seated','done']; const i=flow.indexOf(r.status);
-          const next = (i>=0 && i<flow.length-1) ? flow[i+1] : 'done';
-          changeStatus(id, next);
+        /* تعديل: قفل زر تغيير الحالة فقط */
+        async quickStatus(el, id){
+          await runWithLock(
+            el,
+            (()=>{
+              const r = listAll().find(x=>x.id===id);
+              if(!r) return 'جارٍ…';
+              if(r.status==='new') return 'تأكيد…';
+              if(r.status==='confirmed') return 'تسجيل جلوس…';
+              if(r.status==='seated') return 'إنهاء…';
+              return 'جارٍ…';
+            })(),
+            async ()=>{
+              const list = listAll(); const r = list.find(x=>x.id===id); if(!r) return;
+              const flow=['new','confirmed','seated','done']; const i=flow.indexOf(r.status);
+              const next = (i>=0 && i<flow.length-1) ? flow[i+1] : 'done';
+              await changeStatus(id, next);
+            }
+          );
         },
         edit(id){
           const list=listAll(); const r=list.find(x=>x.id===id); if(!r) return;
@@ -922,6 +969,4 @@ if(!key || key.startsWith('sb_publishable_') || key.includes('REPLACE_WITH_YOUR_
   </script>
 </body>
 </html>
-
-
 
