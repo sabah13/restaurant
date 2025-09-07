@@ -850,9 +850,8 @@
         }
         try{
         const key = String(window.SUPABASE_ANON||'');
-if(!key || key.startsWith('sb_publishable_') || key.includes('sb_publishable_iGmcWiB4iIvnQRYTfJ0n5A_bpR6jTmI')) {
+if(!key || key.startsWith('sb_publishable_') || key.includes('REPLACE_WITH_YOUR_REAL_ANON_JWT')) {
 
-            show('مفتاح Supabase ANON غير صالح. ضع الـ JWT الحقيقي (يبدأ عادة بـ <span class="mono">eyJ...</span>) من Project Settings &rarr; API &rarr; anon public.');
             return;
           }
         }catch(_){}
