@@ -370,8 +370,8 @@ export async function requireAdminOrRedirect(loginPath='login.html'){
   const uid = session.user?.id;
   if (!uid) { location.replace(loginPath); return null; }
 
-  const me = await sb.from('admins').select('user_id').eq('user_id', uid).maybeSingle();
-  if (me.error || !me.data) { location.replace(loginPath); return null; }
+  const { data: isAdmin, error } = await sb.rpc('is_admin', { u: uid });
+  if (error || !isAdmin) { location.replace(loginPath); return null; }
   return session;
 }
 // ---------- Auto bootstrap on admin pages (safe & optional) ----------
