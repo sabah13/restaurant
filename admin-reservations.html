@@ -641,23 +641,13 @@
         });
       }
 
-      // ===== قفل لمنع النقرات المتعددة على زر الحالة =====
-      const __statusBusy = new Set();
-
       // واجهة عامة
       window.__res = {
-        
-        async quickStatus(id){
-          if (__statusBusy.has(id)) return;   // تجاهل النقرات الإضافية لنفس الحجز
-          __statusBusy.add(id);
-          try{
-            const list = listAll(); const r = list.find(x=>x.id===id); if(!r) return;
-            const flow=['new','confirmed','seated','done']; const i=flow.indexOf(r.status);
-            const next = (i>=0 && i<flow.length-1) ? flow[i+1] : 'done';
-            await changeStatus(id, next);      // انتظر إكمال العملية قبل السماح بنقرة أخرى
-          } finally {
-            __statusBusy.delete(id);
-          }
+        quickStatus(id){
+          const list = listAll(); const r = list.find(x=>x.id===id); if(!r) return;
+          const flow=['new','confirmed','seated','done']; const i=flow.indexOf(r.status);
+          const next = (i>=0 && i<flow.length-1) ? flow[i+1] : 'done';
+          changeStatus(id, next);
         },
         edit(id){
           const list=listAll(); const r=list.find(x=>x.id===id); if(!r) return;
@@ -726,7 +716,7 @@
             try{
               const t = (document.querySelector('.brand')?.textContent||'').trim();
               if(t && t!=='لوحة تحكم المطعم') return t;
-            }catch(_){}}
+            }catch(_){}
             return 'اسم المطعم';
           }
           const brandName = pickName();
@@ -831,7 +821,7 @@
       });
 
       document.getElementById('exportBtn').addEventListener('click', ()=>{
-        const rows=[["id","name","phone","date","people","table","status","notes","duration"].join(',')];
+        const rows=[['id','name','phone','date','people','table','status','notes','duration'].join(',')];
         listAll().forEach(r=>{
           rows.push([r.id,(r.name||''),(r.phone||''),(r.date||''),(r.people||0),(r.table||''),(r.status||'new'),(r.notes||''),(r.duration||'')].map(v=>{
             const s=String(v??''); return /[,"\n]/.test(s) ? ('"'+s.replace(/"/g,'""')+'"') : s;
@@ -931,3 +921,4 @@ if(!key || key.startsWith('sb_publishable_') || key.includes('REPLACE_WITH_YOUR_
   </script>
 </body>
 </html>
+
